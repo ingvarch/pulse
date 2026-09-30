@@ -363,28 +363,25 @@ func (m *Model) dotH() int {
 	return 0
 }
 
-// dotY maps a value to dot row offset from the bottom (for Braille).
-func (m *Model) dotY(v float64) int {
+func (m *Model) norm(v float64) float64 {
 	norm := (v - m.min) / m.span()
 	if norm < 0 {
-		norm = 0
+		return 0
 	}
 	if norm > 1 {
-		norm = 1
+		return 1
 	}
-	return int(math.Round(norm * float64(m.dotH())))
+	return norm
+}
+
+// dotY maps a value to dot row offset from the bottom (for Braille).
+func (m *Model) dotY(v float64) int {
+	return int(math.Round(m.norm(v) * float64(m.dotH())))
 }
 
 // tickRow returns the terminal row index (0 at top to h-1 at bottom) for value v.
 func (m *Model) tickRow(v float64) int {
-	norm := (v - m.min) / m.span()
-	if norm < 0 {
-		norm = 0
-	}
-	if norm > 1 {
-		norm = 1
-	}
-	return int(math.Round(float64(m.h-1) * (1.0 - norm)))
+	return int(math.Round(float64(m.h-1) * (1.0 - m.norm(v))))
 }
 
 // maxGridTicks calculates an appropriate grid tick count based on chart height.
@@ -629,14 +626,7 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 	ys := make([]int, window)
 	for j, v := range data {
 		c := startCol + j
-		norm := (v - m.min) / m.span()
-		if norm < 0 {
-			norm = 0
-		}
-		if norm > 1 {
-			norm = 1
-		}
-		ys[c] = int(math.Round(float64(m.h-1) * (1.0 - norm)))
+		ys[c] = int(math.Round(float64(m.h-1) * (1.0 - m.norm(v))))
 	}
 
 	for c := startCol + 1; c < window; c++ {
@@ -680,14 +670,7 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 	}
 
 	// Baseline for area fill (0 by default)
-	baseNorm := (0 - m.min) / m.span()
-	if baseNorm < 0 {
-		baseNorm = 0
-	}
-	if baseNorm > 1 {
-		baseNorm = 1
-	}
-	baseRow := int(math.Round(float64(m.h-1) * (1.0 - baseNorm)))
+	baseRow := int(math.Round(float64(m.h-1) * (1.0 - m.norm(0))))
 
 	// Shaded area fill ░ below the line (strictly beneath the line's lower boundary in each column)
 	if m.fill {
@@ -714,6 +697,39 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 			}
 		}
 	}
+}
+
+func (m *Model) styleFor(owner int, styles []lipgloss.Style) lipgloss.Style {
+	if owner >= 0 && owner < len(styles) {
+		return styles[owner]
+	}
+	return m.lineStyle
+}
+
+func (m *Model) faintStyleFor(owner int, styles []lipgloss.Style) lipgloss.Style {
+	return m.styleFor(owner, styles).Faint(true)
+}
+
+func gridCell(h, v bool) string {
+	switch {
+	case h && v:
+		return "┼"
+	case h:
+		return "─"
+	default:
+		return "│"
+	}
+}
+
+func makeCells[T any](h, w int, fill T) [][]T {
+	cells := make([][]T, h)
+	for i := range cells {
+		cells[i] = make([]T, w)
+		for j := range cells[i] {
+			cells[i][j] = fill
+		}
+	}
+	return cells
 }
 
 // View renders the chart: Y-axis labels + axis border + plot area.
@@ -768,89 +784,61 @@ func (m *Model) View() string {
 	}
 
 	gridStyle := m.axisStyle.Faint(true)
-	var sb strings.Builder
 
 	if m.mode == ModeLines {
-		lineMask := make([][]uint8, m.h)
-		lineOwner := make([][]int, m.h)
-		fillMask := make([][]bool, m.h)
-		fillOwner := make([][]int, m.h)
-		for i := range lineMask {
-			lineMask[i] = make([]uint8, m.w)
-			lineOwner[i] = make([]int, m.w)
-			fillMask[i] = make([]bool, m.w)
-			fillOwner[i] = make([]int, m.w)
-			for j := range lineOwner[i] {
-				lineOwner[i][j] = -1
-				fillOwner[i][j] = -1
-			}
-		}
+		return m.renderLines(fmtStr, rowLabel, hGrid, vGrid, names, styles, gridStyle)
+	}
+	return m.renderBraille(fmtStr, rowLabel, hGrid, vGrid, names, styles, gridStyle)
+}
 
-		for idx, name := range names {
-			s, ok := m.series[name]
-			if !ok {
+func (m *Model) renderLines(fmtStr string, rowLabel map[int]string, hGrid, vGrid []bool, names []string, styles []lipgloss.Style, gridStyle lipgloss.Style) string {
+	lineMask := makeCells(m.h, m.w, uint8(0))
+	lineOwner := makeCells(m.h, m.w, -1)
+	fillMask := makeCells(m.h, m.w, false)
+	fillOwner := makeCells(m.h, m.w, -1)
+
+	for idx, name := range names {
+		s, ok := m.series[name]
+		if !ok {
+			continue
+		}
+		m.plotSeriesLines(lineMask, lineOwner, fillMask, fillOwner, idx, s.data)
+	}
+
+	var sb strings.Builder
+	for r := 0; r < m.h; r++ {
+		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
+		sb.WriteString(m.axisStyle.Render("│"))
+		for c := 0; c < m.w; c++ {
+			if lineMask[r][c] != 0 {
+				st := m.styleFor(lineOwner[r][c], styles)
+				ru := m.runeForMask(lineMask[r][c])
+				sb.WriteString(st.Render(string(ru)))
 				continue
 			}
-			m.plotSeriesLines(lineMask, lineOwner, fillMask, fillOwner, idx, s.data)
-		}
-
-		for r := 0; r < m.h; r++ {
-			sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
-			sb.WriteString(m.axisStyle.Render("│"))
-			for c := 0; c < m.w; c++ {
-				if lineMask[r][c] != 0 {
-					st := m.lineStyle
-					if idx := lineOwner[r][c]; idx >= 0 && idx < len(styles) {
-						st = styles[idx]
-					}
-					ru := m.runeForMask(lineMask[r][c])
-					sb.WriteString(st.Render(string(ru)))
-					continue
-				}
-				if fillMask[r][c] {
-					st := m.lineStyle.Faint(true)
-					if idx := fillOwner[r][c]; idx >= 0 && idx < len(styles) {
-						st = styles[idx].Faint(true)
-					}
-					sb.WriteString(st.Render("░"))
-					continue
-				}
-				if hGrid[r] || vGrid[c] {
-					st := gridStyle
-					switch {
-					case hGrid[r] && vGrid[c]:
-						sb.WriteString(st.Render("┼"))
-					case hGrid[r]:
-						sb.WriteString(st.Render("─"))
-					default:
-						sb.WriteString(st.Render("│"))
-					}
-					continue
-				}
-				sb.WriteByte(' ')
+			if fillMask[r][c] {
+				st := m.faintStyleFor(fillOwner[r][c], styles)
+				sb.WriteString(st.Render("░"))
+				continue
 			}
-			if r < m.h-1 {
-				sb.WriteByte('\n')
+			if hGrid[r] || vGrid[c] {
+				sb.WriteString(gridStyle.Render(gridCell(hGrid[r], vGrid[c])))
+				continue
 			}
+			sb.WriteByte(' ')
 		}
-		return sb.String()
-	}
-
-	// ModeBraille:
-	grid := make([][]uint8, m.h)
-	owner := make([][]int, m.h)
-	fillMask := make([][]uint8, m.h)
-	fillOwner := make([][]int, m.h)
-	for i := range grid {
-		grid[i] = make([]uint8, m.w)
-		owner[i] = make([]int, m.w)
-		fillMask[i] = make([]uint8, m.w)
-		fillOwner[i] = make([]int, m.w)
-		for j := range owner[i] {
-			owner[i][j] = -1
-			fillOwner[i][j] = -1
+		if r < m.h-1 {
+			sb.WriteByte('\n')
 		}
 	}
+	return sb.String()
+}
+
+func (m *Model) renderBraille(fmtStr string, rowLabel map[int]string, hGrid, vGrid []bool, names []string, styles []lipgloss.Style, gridStyle lipgloss.Style) string {
+	grid := makeCells(m.h, m.w, uint8(0))
+	owner := makeCells(m.h, m.w, -1)
+	fillMask := makeCells(m.h, m.w, uint8(0))
+	fillOwner := makeCells(m.h, m.w, -1)
 
 	base := m.dotY(0)
 	for idx, name := range names {
@@ -877,36 +865,23 @@ func (m *Model) View() string {
 		}
 	}
 
+	var sb strings.Builder
 	for r := 0; r < m.h; r++ {
 		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
 		sb.WriteString(m.axisStyle.Render("│"))
 		for c := 0; c < m.w; c++ {
 			if grid[r][c] != 0 {
-				st := m.lineStyle
-				if idx := owner[r][c]; idx >= 0 && idx < len(styles) {
-					st = styles[idx]
-				}
+				st := m.styleFor(owner[r][c], styles)
 				sb.WriteString(st.Render(string(rune(0x2800 + int(grid[r][c])))))
 				continue
 			}
 			if fillMask[r][c] != 0 {
-				st := m.lineStyle.Faint(true)
-				if idx := fillOwner[r][c]; idx >= 0 && idx < len(styles) {
-					st = styles[idx].Faint(true)
-				}
+				st := m.faintStyleFor(fillOwner[r][c], styles)
 				sb.WriteString(st.Render(string(rune(0x2800 + int(fillMask[r][c])))))
 				continue
 			}
 			if hGrid[r] || vGrid[c] {
-				st := gridStyle
-				switch {
-				case hGrid[r] && vGrid[c]:
-					sb.WriteString(st.Render("┼"))
-				case hGrid[r]:
-					sb.WriteString(st.Render("─"))
-				default:
-					sb.WriteString(st.Render("│"))
-				}
+				sb.WriteString(gridStyle.Render(gridCell(hGrid[r], vGrid[c])))
 				continue
 			}
 			sb.WriteByte(' ')
