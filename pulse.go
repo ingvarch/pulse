@@ -1,8 +1,8 @@
 package pulse
 
 import (
-	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -22,13 +22,14 @@ const (
 
 // RenderContext contains prepared axis, tick, label, and style metadata passed to a Renderer.
 type RenderContext struct {
-	FmtStr    string
-	RowLabel  map[int]string
-	HGrid     []bool
-	VGrid     []bool
-	Names     []string
-	Styles    []lipgloss.Style
-	GridStyle lipgloss.Style
+	LabelWidth int
+	LabelStyle lipgloss.Style
+	RowLabel   map[int]string
+	HGrid      []bool
+	VGrid      []bool
+	Names      []string
+	Styles     []lipgloss.Style
+	GridStyle  lipgloss.Style
 }
 
 // Renderer defines how chart series data and axes are rendered into a string.
@@ -269,8 +270,16 @@ func (m *Model) LineWidth() int {
 }
 
 // SetTicks dynamically sets explicit tick values for the Y axis.
+// Ticks are copied, sorted ascending, and deduplicated.
 func (m *Model) SetTicks(ticks ...float64) {
-	m.customTicks = ticks
+	if len(ticks) == 0 {
+		m.customTicks = nil
+		return
+	}
+	cp := make([]float64, len(ticks))
+	copy(cp, ticks)
+	slices.Sort(cp)
+	m.customTicks = slices.Compact(cp)
 }
 
 // SetLabelFormatter dynamically updates the Y-axis label formatter.
@@ -852,12 +861,12 @@ func (m *Model) View() string {
 	if labelWidth <= 0 {
 		labelWidth = 4
 		for _, lbl := range rowLabel {
-			if len(lbl) > labelWidth {
-				labelWidth = len(lbl)
+			if w := lipgloss.Width(lbl); w > labelWidth {
+				labelWidth = w
 			}
 		}
 	}
-	fmtStr := fmt.Sprintf("%%%ds", labelWidth)
+	labelStyle := m.axisStyle.Width(labelWidth).Align(lipgloss.Right)
 
 	hGrid := make([]bool, m.h)
 	vGrid := make([]bool, m.w)
@@ -882,13 +891,14 @@ func (m *Model) View() string {
 
 	gridStyle := m.axisStyle.Faint(true)
 	ctx := RenderContext{
-		FmtStr:    fmtStr,
-		RowLabel:  rowLabel,
-		HGrid:     hGrid,
-		VGrid:     vGrid,
-		Names:     names,
-		Styles:    styles,
-		GridStyle: gridStyle,
+		LabelWidth: labelWidth,
+		LabelStyle: labelStyle,
+		RowLabel:   rowLabel,
+		HGrid:      hGrid,
+		VGrid:      vGrid,
+		Names:      names,
+		Styles:     styles,
+		GridStyle:  gridStyle,
 	}
 
 	r := m.renderer
@@ -907,6 +917,29 @@ func (m *Model) String() string {
 	return m.View()
 }
 
+func (m *Model) renderGrid(ctx RenderContext, cellAt func(r, c int) (string, bool)) string {
+	var sb strings.Builder
+	for r := 0; r < m.h; r++ {
+		sb.WriteString(ctx.LabelStyle.Render(ctx.RowLabel[r]))
+		sb.WriteString(m.axisStyle.Render("│"))
+		for c := 0; c < m.w; c++ {
+			if s, ok := cellAt(r, c); ok {
+				sb.WriteString(s)
+				continue
+			}
+			if ctx.HGrid[r] || ctx.VGrid[c] {
+				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[c])))
+				continue
+			}
+			sb.WriteByte(' ')
+		}
+		if r < m.h-1 {
+			sb.WriteByte('\n')
+		}
+	}
+	return sb.String()
+}
+
 // Render implements Renderer for LinesRenderer.
 func (LinesRenderer) Render(m *Model, ctx RenderContext) string {
 	lineMask := makeCells(m.h, m.w, uint8(0))
@@ -922,33 +955,18 @@ func (LinesRenderer) Render(m *Model, ctx RenderContext) string {
 		m.plotSeriesLines(lineMask, lineOwner, fillMask, fillOwner, idx, s.data)
 	}
 
-	var sb strings.Builder
-	for r := 0; r < m.h; r++ {
-		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(ctx.FmtStr, ctx.RowLabel[r])))
-		sb.WriteString(m.axisStyle.Render("│"))
-		for c := 0; c < m.w; c++ {
-			if lineMask[r][c] != 0 {
-				st := m.styleFor(lineOwner[r][c], ctx.Styles)
-				ru := m.runeForMask(lineMask[r][c])
-				sb.WriteString(st.Render(string(ru)))
-				continue
-			}
-			if fillMask[r][c] {
-				st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
-				sb.WriteString(st.Render("░"))
-				continue
-			}
-			if ctx.HGrid[r] || ctx.VGrid[c] {
-				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[c])))
-				continue
-			}
-			sb.WriteByte(' ')
+	return m.renderGrid(ctx, func(r, c int) (string, bool) {
+		if lineMask[r][c] != 0 {
+			st := m.styleFor(lineOwner[r][c], ctx.Styles)
+			ru := m.runeForMask(lineMask[r][c])
+			return st.Render(string(ru)), true
 		}
-		if r < m.h-1 {
-			sb.WriteByte('\n')
+		if fillMask[r][c] {
+			st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
+			return st.Render("░"), true
 		}
-	}
-	return sb.String()
+		return "", false
+	})
 }
 
 // Render implements Renderer for BrailleRenderer.
@@ -983,30 +1001,15 @@ func (BrailleRenderer) Render(m *Model, ctx RenderContext) string {
 		}
 	}
 
-	var sb strings.Builder
-	for r := 0; r < m.h; r++ {
-		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(ctx.FmtStr, ctx.RowLabel[r])))
-		sb.WriteString(m.axisStyle.Render("│"))
-		for c := 0; c < m.w; c++ {
-			if grid[r][c] != 0 {
-				st := m.styleFor(owner[r][c], ctx.Styles)
-				sb.WriteString(st.Render(string(rune(0x2800 + int(grid[r][c])))))
-				continue
-			}
-			if fillMask[r][c] != 0 {
-				st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
-				sb.WriteString(st.Render(string(rune(0x2800 + int(fillMask[r][c])))))
-				continue
-			}
-			if ctx.HGrid[r] || ctx.VGrid[c] {
-				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[c])))
-				continue
-			}
-			sb.WriteByte(' ')
+	return m.renderGrid(ctx, func(r, c int) (string, bool) {
+		if grid[r][c] != 0 {
+			st := m.styleFor(owner[r][c], ctx.Styles)
+			return st.Render(string(rune(0x2800 + int(grid[r][c])))), true
 		}
-		if r < m.h-1 {
-			sb.WriteByte('\n')
+		if fillMask[r][c] != 0 {
+			st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
+			return st.Render(string(rune(0x2800 + int(fillMask[r][c])))), true
 		}
-	}
-	return sb.String()
+		return "", false
+	})
 }

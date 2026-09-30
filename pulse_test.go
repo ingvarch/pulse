@@ -268,14 +268,64 @@ func TestLineChart_LineWidthToggleChangesRender(t *testing.T) {
 }
 
 func TestLineChart_NamedSeriesLeftEndpointOwner(t *testing.T) {
+	blue := lipgloss.NewStyle().Foreground(lipgloss.Color("#0000ff"))
 	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
-	lc := pulse.New(20, 8, pulse.WithLineWidth(1), pulse.WithRange(0, 100), pulse.WithSeriesStyle("alpha", red), pulse.WithGrid(false), pulse.WithFill(false))
+
+	// Case 1: Multi-point line. Start point at startCol must be red, not blue.
+	lc := pulse.New(20, 8,
+		pulse.WithLineWidth(1),
+		pulse.WithRange(0, 100),
+		pulse.WithLineStyle(blue),
+		pulse.WithSeriesStyle("alpha", red),
+		pulse.WithGrid(false),
+		pulse.WithFill(false),
+	)
 	for _, v := range []float64{50, 60, 70} {
 		lc.PushSeries("alpha", v)
 	}
 	view := lc.View()
-	if !strings.Contains(view, red.Render("─")) && !strings.Contains(view, red.Render("╭")) && !strings.Contains(view, red.Render("╰")) {
-		t.Fatalf("expected styled runes in View(), got:\n%s", view)
+
+	// Default line style (blue) must NEVER appear anywhere in a chart with only named series "alpha"
+	if strings.Contains(view, blue.Render("─")) || strings.Contains(view, blue.Render("╭")) || strings.Contains(view, blue.Render("╰")) {
+		t.Fatalf("default blue style leaked into named series alpha:\n%s", view)
+	}
+
+	lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+	// For 50% on height 8: row index = round(7 * 0.5) = 4 (counting from top).
+	// With 3 points in window of 20: startCol = 20 - 3 = 17.
+	sepIdx := strings.Index(lines[4], "│")
+	if sepIdx < 0 {
+		t.Fatalf("missing axis border in line 4: %q", lines[4])
+	}
+	plotArea := lines[4][sepIdx+len("│"):]
+	if len(plotArea) < 17 {
+		t.Fatalf("plotArea too short: %q", plotArea)
+	}
+	// Columns 0..16 must be blank spaces
+	if plotArea[:17] != strings.Repeat(" ", 17) {
+		t.Fatalf("expected 17 leading spaces before startCol, got %q", plotArea[:17])
+	}
+	// Column 17 (the starting cell) must strictly begin with red.Render("─")
+	if !strings.HasPrefix(plotArea[17:], red.Render("─")) {
+		t.Fatalf("starting cell at col 17 must be red.Render(\"─\"), got:\n%q", plotArea[17:])
+	}
+
+	// Case 2: Single-point line (n == 1). Must also be red, not blue.
+	single := pulse.New(10, 5,
+		pulse.WithLineWidth(1),
+		pulse.WithRange(0, 100),
+		pulse.WithLineStyle(blue),
+		pulse.WithSeriesStyle("alpha", red),
+		pulse.WithGrid(false),
+		pulse.WithFill(false),
+	)
+	single.PushSeries("alpha", 50)
+	singleView := single.View()
+	if strings.Contains(singleView, blue.Render("─")) {
+		t.Fatalf("single point left endpoint must not use default blue style")
+	}
+	if !strings.Contains(singleView, red.Render("─")) {
+		t.Fatalf("single point left endpoint must use series red style")
 	}
 }
 
@@ -327,5 +377,73 @@ func TestLineChart_CustomRenderer(t *testing.T) {
 	want := "custom[30x10]:2" // "" default series + "s1"
 	if got != want {
 		t.Fatalf("expected custom renderer output %q, got %q", want, got)
+	}
+}
+
+func TestLineChart_UnicodeLabelAlignment(t *testing.T) {
+	tests := []struct {
+		name      string
+		formatter func(float64) string
+	}{
+		{
+			name: "Celsius",
+			formatter: func(v float64) string {
+				return fmt.Sprintf("%d°C", int(v))
+			},
+		},
+		{
+			name: "CJK",
+			formatter: func(v float64) string {
+				return fmt.Sprintf("%d度", int(v))
+			},
+		},
+		{
+			name: "Emoji",
+			formatter: func(v float64) string {
+				return fmt.Sprintf("%d🔥", int(v))
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			lc := pulse.New(20, 6,
+				pulse.WithRange(0, 100),
+				pulse.WithTicks(0, 50, 100),
+				pulse.WithLabelFormatter(tc.formatter),
+			)
+			view := lc.View()
+			lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+			var axisCol int
+			for r, ln := range lines {
+				idx := strings.Index(ln, "│")
+				if idx < 0 {
+					t.Fatalf("line %d missing axis '│': %q", r, ln)
+				}
+				// Visual width of the label column before '│' must be constant across all lines
+				visualW := lipgloss.Width(ln[:idx])
+				if r == 0 {
+					axisCol = visualW
+				} else if visualW != axisCol {
+					t.Fatalf("line %d axis visual column mismatch: got %d, want %d (line: %q)", r, visualW, axisCol, ln)
+				}
+			}
+		})
+	}
+}
+
+func TestLineChart_CustomTicks_SortAndDeduplicate(t *testing.T) {
+	// User provides unsorted ticks with duplicates: 100, 0, 50, 50
+	lc := pulse.New(20, 6,
+		pulse.WithRange(0, 100),
+		pulse.WithTicks(100, 0, 50, 50),
+	)
+	view := lc.View()
+	lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+	// Must have labels at top (100) and bottom (0)
+	if !strings.Contains(lines[0], "100") {
+		t.Fatalf("expected top line to contain 100, got: %q", lines[0])
+	}
+	if !strings.Contains(lines[len(lines)-1], "0") {
+		t.Fatalf("expected bottom line to contain 0, got: %q", lines[len(lines)-1])
 	}
 }
