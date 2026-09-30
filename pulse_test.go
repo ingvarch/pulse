@@ -1,6 +1,7 @@
 package pulse_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -301,5 +302,14 @@ func TestLineChart_LabelFormatterAndWidth(t *testing.T) {
 	}
 	if !strings.Contains(view, "4 GHz") || !strings.Contains(view, "0 GHz") {
 		t.Fatalf("expected custom formatted labels in View(), got:\n%s", view)
+	}
+}
+
+func TestLineChart_Stringer(t *testing.T) {
+	lc := pulse.New(20, 8, pulse.WithRange(0, 100))
+	lc.Push(50)
+	var stringer fmt.Stringer = lc
+	if stringer.String() != lc.View() {
+		t.Fatalf("expected String() to match View()")
 	}
 }

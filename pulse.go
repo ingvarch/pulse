@@ -291,6 +291,13 @@ func (m *Model) Last(name string) (float64, bool) {
 	return s.last, true
 }
 
+func (m *Model) formatValue(v float64) string {
+	if m.labelFormatter != nil {
+		return m.labelFormatter(v)
+	}
+	return scale.FormatTick(v)
+}
+
 // LegendBox returns a boxed legend with borders, swatches, series names, and recent values.
 func (m *Model) LegendBox() string {
 	if len(m.order) == 0 {
@@ -301,11 +308,7 @@ func (m *Model) LegendBox() string {
 		swatch := m.seriesStyle(name).Render("■")
 		value := ""
 		if v, ok := m.Last(name); ok {
-			if m.labelFormatter != nil {
-				value = m.labelFormatter(v)
-			} else {
-				value = scale.FormatTick(v)
-			}
+			value = m.formatValue(v)
 		}
 		lines = append(lines, swatch+" "+m.axisStyle.Render(name+" "+value))
 	}
@@ -743,11 +746,7 @@ func (m *Model) View() string {
 		}
 		row := m.tickRow(t)
 		if _, taken := rowLabel[row]; !taken {
-			if m.labelFormatter != nil {
-				rowLabel[row] = m.labelFormatter(t)
-			} else {
-				rowLabel[row] = scale.FormatTick(t)
-			}
+			rowLabel[row] = m.formatValue(t)
 		}
 	}
 
@@ -789,6 +788,11 @@ func (m *Model) View() string {
 		return m.renderLines(fmtStr, rowLabel, hGrid, vGrid, names, styles, gridStyle)
 	}
 	return m.renderBraille(fmtStr, rowLabel, hGrid, vGrid, names, styles, gridStyle)
+}
+
+// String implements fmt.Stringer, returning the rendered chart View().
+func (m *Model) String() string {
+	return m.View()
 }
 
 func (m *Model) renderLines(fmtStr string, rowLabel map[int]string, hGrid, vGrid []bool, names []string, styles []lipgloss.Style, gridStyle lipgloss.Style) string {
