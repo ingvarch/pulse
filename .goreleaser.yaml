@@ -1,0 +1,55 @@
+version: 2
+
+project_name: pulse
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: pulse-livedemo
+    main: ./examples/livedemo
+    binary: pulse-livedemo
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+  - id: pulse-multidemo
+    main: ./examples/multidemo
+    binary: pulse-multidemo
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "Merge pull request"

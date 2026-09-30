@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache: true
+
+      - name: Verify formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Unformatted files found:"
+            gofmt -d .
+            exit 1
+          fi
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Run tests with race detector
+        run: go test -v -race ./...
+
+      - name: Build all packages and examples
+        run: go build ./...
