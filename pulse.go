@@ -38,6 +38,9 @@ type Model struct {
 	axisStyle lipgloss.Style
 
 	customTicks []float64
+
+	labelWidth     int
+	labelFormatter func(float64) string
 }
 
 type series struct {
@@ -106,6 +109,16 @@ func WithLines() Option {
 // WithTicks sets explicit Y-axis tick values (e.g. 0, 25, 50, 75, 100 or 0, 50, 100).
 func WithTicks(ticks ...float64) Option {
 	return func(m *Model) { m.customTicks = ticks }
+}
+
+// WithLabelFormatter sets a custom formatter for Y-axis tick values.
+func WithLabelFormatter(fn func(float64) string) Option {
+	return func(m *Model) { m.labelFormatter = fn }
+}
+
+// WithLabelWidth sets an explicit width for Y-axis labels.
+func WithLabelWidth(w int) Option {
+	return func(m *Model) { m.labelWidth = w }
 }
 
 // WithBraille enables braille dot matrix mode (2x4 dots).
@@ -223,6 +236,16 @@ func (m *Model) SetTicks(ticks ...float64) {
 	m.customTicks = ticks
 }
 
+// SetLabelFormatter dynamically updates the Y-axis label formatter.
+func (m *Model) SetLabelFormatter(fn func(float64) string) {
+	m.labelFormatter = fn
+}
+
+// SetLabelWidth dynamically updates the Y-axis label column width.
+func (m *Model) SetLabelWidth(w int) {
+	m.labelWidth = w
+}
+
 // SetMode sets the rendering mode (ModeLines or ModeBraille).
 func (m *Model) SetMode(mode RenderMode) {
 	m.mode = mode
@@ -278,7 +301,11 @@ func (m *Model) LegendBox() string {
 		swatch := m.seriesStyle(name).Render("■")
 		value := ""
 		if v, ok := m.Last(name); ok {
-			value = scale.FormatTick(v)
+			if m.labelFormatter != nil {
+				value = m.labelFormatter(v)
+			} else {
+				value = scale.FormatTick(v)
+			}
 		}
 		lines = append(lines, swatch+" "+m.axisStyle.Render(name+" "+value))
 	}
@@ -700,9 +727,24 @@ func (m *Model) View() string {
 		}
 		row := m.tickRow(t)
 		if _, taken := rowLabel[row]; !taken {
-			rowLabel[row] = scale.FormatTick(t)
+			if m.labelFormatter != nil {
+				rowLabel[row] = m.labelFormatter(t)
+			} else {
+				rowLabel[row] = scale.FormatTick(t)
+			}
 		}
 	}
+
+	labelWidth := m.labelWidth
+	if labelWidth <= 0 {
+		labelWidth = 4
+		for _, lbl := range rowLabel {
+			if len(lbl) > labelWidth {
+				labelWidth = len(lbl)
+			}
+		}
+	}
+	fmtStr := fmt.Sprintf("%%%ds", labelWidth)
 
 	hGrid := make([]bool, m.h)
 	vGrid := make([]bool, m.w)
@@ -753,7 +795,7 @@ func (m *Model) View() string {
 		}
 
 		for r := 0; r < m.h; r++ {
-			sb.WriteString(m.axisStyle.Render(fmt.Sprintf("%4s", rowLabel[r])))
+			sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
 			sb.WriteString(m.axisStyle.Render("│"))
 			for c := 0; c < m.w; c++ {
 				if lineMask[r][c] != 0 {
@@ -836,7 +878,7 @@ func (m *Model) View() string {
 	}
 
 	for r := 0; r < m.h; r++ {
-		sb.WriteString(m.axisStyle.Render(fmt.Sprintf("%4s", rowLabel[r])))
+		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
 		sb.WriteString(m.axisStyle.Render("│"))
 		for c := 0; c < m.w; c++ {
 			if grid[r][c] != 0 {

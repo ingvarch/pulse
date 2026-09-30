@@ -277,3 +277,29 @@ func TestLineChart_NamedSeriesLeftEndpointOwner(t *testing.T) {
 		t.Fatalf("expected styled runes in View(), got:\n%s", view)
 	}
 }
+
+func TestLineChart_LabelFormatterAndWidth(t *testing.T) {
+	fmtFn := func(v float64) string {
+		return strings.Repeat(" ", 0) + string([]byte{byte('0' + int(v)/1000)}) + " GHz"
+	}
+	lc := pulse.New(15, 5,
+		pulse.WithRange(0, 4000),
+		pulse.WithTicks(0, 2000, 4000),
+		pulse.WithLabelFormatter(fmtFn),
+		pulse.WithLabelWidth(8),
+	)
+	view := lc.View()
+	lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+	for i, ln := range lines {
+		runes := []rune(ln)
+		if len(runes) < 9 {
+			t.Fatalf("line %d too short: %q", i, ln)
+		}
+		if runes[8] != '│' {
+			t.Fatalf("expected '│' at index 8 for line %d, got %q (line: %q)", i, string(runes[8]), ln)
+		}
+	}
+	if !strings.Contains(view, "4 GHz") || !strings.Contains(view, "0 GHz") {
+		t.Fatalf("expected custom formatted labels in View(), got:\n%s", view)
+	}
+}
