@@ -265,3 +265,15 @@ func TestLineChart_LineWidthToggleChangesRender(t *testing.T) {
 		t.Fatal("View() with default and thin line must differ")
 	}
 }
+
+func TestLineChart_NamedSeriesLeftEndpointOwner(t *testing.T) {
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
+	lc := pulse.New(20, 8, pulse.WithLineWidth(1), pulse.WithRange(0, 100), pulse.WithSeriesStyle("alpha", red), pulse.WithGrid(false), pulse.WithFill(false))
+	for _, v := range []float64{50, 60, 70} {
+		lc.PushSeries("alpha", v)
+	}
+	view := lc.View()
+	if !strings.Contains(view, red.Render("─")) && !strings.Contains(view, red.Render("╭")) && !strings.Contains(view, red.Render("╰")) {
+		t.Fatalf("expected styled runes in View(), got:\n%s", view)
+	}
+}

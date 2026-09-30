@@ -508,116 +508,80 @@ const (
 	armLeft  = 8
 )
 
-func (m *Model) runeForMask(mask uint8) rune {
+type lineGlyphs struct {
+	vert, horiz    rune
+	dr, dl, ur, ul rune
+	tr, tl, td, tu rune
+	cross          rune
+}
+
+var (
+	glyphsThinRounded = lineGlyphs{
+		vert: '│', horiz: '─',
+		dr: '╭', dl: '╮', ur: '╰', ul: '╯',
+		tr: '├', tl: '┤', td: '┬', tu: '┴',
+		cross: '┼',
+	}
+	glyphsThinSharp = lineGlyphs{
+		vert: '│', horiz: '─',
+		dr: '┌', dl: '┐', ur: '└', ul: '┘',
+		tr: '├', tl: '┤', td: '┬', tu: '┴',
+		cross: '┼',
+	}
+	glyphsBoldRounded = lineGlyphs{
+		vert: '┃', horiz: '━',
+		dr: '┏', dl: '┓', ur: '┗', ul: '┛',
+		tr: '┣', tl: '┫', td: '┳', tu: '┻',
+		cross: '╋',
+	}
+	glyphsBoldSharp = lineGlyphs{
+		vert: '┃', horiz: '━',
+		dr: '┌', dl: '┐', ur: '└', ul: '┘',
+		tr: '├', tl: '┤', td: '┬', tu: '┴',
+		cross: '┼',
+	}
+)
+
+func (m *Model) glyphs() lineGlyphs {
 	if m.lineWidth > 1 {
 		if !m.smooth {
-			switch mask {
-			case armUp, armDown, armUp | armDown:
-				return '┃'
-			case armLeft, armRight, armLeft | armRight:
-				return '━'
-			case armDown | armRight:
-				return '┌'
-			case armDown | armLeft:
-				return '┐'
-			case armUp | armRight:
-				return '└'
-			case armUp | armLeft:
-				return '┘'
-			case armUp | armDown | armRight:
-				return '├'
-			case armUp | armDown | armLeft:
-				return '┤'
-			case armDown | armLeft | armRight:
-				return '┬'
-			case armUp | armLeft | armRight:
-				return '┴'
-			case armUp | armDown | armLeft | armRight:
-				return '┼'
-			default:
-				return '━'
-			}
+			return glyphsBoldSharp
 		}
-		switch mask {
-		case armUp, armDown, armUp | armDown:
-			return '┃'
-		case armLeft, armRight, armLeft | armRight:
-			return '━'
-		case armDown | armRight:
-			return '┏'
-		case armDown | armLeft:
-			return '┓'
-		case armUp | armRight:
-			return '┗'
-		case armUp | armLeft:
-			return '┛'
-		case armUp | armDown | armRight:
-			return '┣'
-		case armUp | armDown | armLeft:
-			return '┫'
-		case armDown | armLeft | armRight:
-			return '┳'
-		case armUp | armLeft | armRight:
-			return '┻'
-		case armUp | armDown | armLeft | armRight:
-			return '╋'
-		default:
-			return '━'
-		}
+		return glyphsBoldRounded
 	}
 	if m.smooth {
-		switch mask {
-		case armUp, armDown, armUp | armDown:
-			return '│'
-		case armLeft, armRight, armLeft | armRight:
-			return '─'
-		case armDown | armRight:
-			return '╭'
-		case armDown | armLeft:
-			return '╮'
-		case armUp | armRight:
-			return '╰'
-		case armUp | armLeft:
-			return '╯'
-		case armUp | armDown | armRight:
-			return '├'
-		case armUp | armDown | armLeft:
-			return '┤'
-		case armDown | armLeft | armRight:
-			return '┬'
-		case armUp | armLeft | armRight:
-			return '┴'
-		case armUp | armDown | armLeft | armRight:
-			return '┼'
-		default:
-			return '─'
-		}
+		return glyphsThinRounded
 	}
+	return glyphsThinSharp
+}
+
+func (m *Model) runeForMask(mask uint8) rune {
+	g := m.glyphs()
 	switch mask {
 	case armUp, armDown, armUp | armDown:
-		return '│'
+		return g.vert
 	case armLeft, armRight, armLeft | armRight:
-		return '─'
+		return g.horiz
 	case armDown | armRight:
-		return '┌'
+		return g.dr
 	case armDown | armLeft:
-		return '┐'
+		return g.dl
 	case armUp | armRight:
-		return '└'
+		return g.ur
 	case armUp | armLeft:
-		return '┘'
+		return g.ul
 	case armUp | armDown | armRight:
-		return '├'
+		return g.tr
 	case armUp | armDown | armLeft:
-		return '┤'
+		return g.tl
 	case armDown | armLeft | armRight:
-		return '┬'
+		return g.td
 	case armUp | armLeft | armRight:
-		return '┴'
+		return g.tu
 	case armUp | armDown | armLeft | armRight:
-		return '┼'
+		return g.cross
 	default:
-		return '─'
+		return g.horiz
 	}
 }
 
@@ -685,6 +649,7 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 		lineOwner[ys[startCol]][startCol] = idx
 	} else if ys[startCol] >= 0 && ys[startCol] < m.h {
 		lineMask[ys[startCol]][startCol] |= armLeft
+		lineOwner[ys[startCol]][startCol] = idx
 	}
 
 	// Baseline for area fill (0 by default)
