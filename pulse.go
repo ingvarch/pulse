@@ -18,7 +18,26 @@ const (
 	ModeLines RenderMode = iota
 	// ModeBraille renders using a 2x4 dot braille matrix (Unicode Braille Patterns).
 	ModeBraille
+	// ModeCustom represents a custom user-supplied Renderer.
+	ModeCustom
 )
+
+// Chart provides the read-only contract for inspecting chart dimensions, data, and styles.
+type Chart interface {
+	Width() int
+	Height() int
+	Min() float64
+	Max() float64
+	Fill() bool
+	Grid() bool
+	Smooth() bool
+	LineWidth() int
+	AxisStyle() lipgloss.Style
+	LineStyle() lipgloss.Style
+	SeriesStyle(name string) lipgloss.Style
+	SeriesNames() []string
+	SeriesData(name string) []float64
+}
 
 // RenderContext contains prepared axis, tick, label, and style metadata passed to a Renderer.
 type RenderContext struct {
@@ -33,8 +52,10 @@ type RenderContext struct {
 }
 
 // Renderer defines how chart series data and axes are rendered into a string.
+// Custom renderers only need the Chart contract: build one with New and Push
+// in tests, no mocks required.
 type Renderer interface {
-	Render(m *Model, ctx RenderContext) string
+	Render(c Chart, ctx RenderContext) string
 }
 
 // LinesRenderer renders smooth box-drawing lines with optional area fill.
@@ -46,6 +67,7 @@ type BrailleRenderer struct{}
 var (
 	_ Renderer = LinesRenderer{}
 	_ Renderer = BrailleRenderer{}
+	_ Chart    = (*Model)(nil)
 )
 
 // Model is a streaming terminal line chart.
@@ -60,7 +82,6 @@ type Model struct {
 	fill      bool
 	smooth    bool
 	lineWidth int
-	mode      RenderMode
 	renderer  Renderer
 
 	lineStyle lipgloss.Style
@@ -126,11 +147,6 @@ func WithMode(mode RenderMode) Option {
 	return func(m *Model) { m.SetMode(mode) }
 }
 
-// WithLines enables continuous line rendering mode.
-func WithLines() Option {
-	return func(m *Model) { m.SetMode(ModeLines) }
-}
-
 // WithTicks sets explicit Y-axis tick values (e.g. 0, 25, 50, 75, 100 or 0, 50, 100).
 func WithTicks(ticks ...float64) Option {
 	return func(m *Model) { m.SetTicks(ticks...) }
@@ -144,11 +160,6 @@ func WithLabelFormatter(fn func(float64) string) Option {
 // WithLabelWidth sets an explicit width for Y-axis labels.
 func WithLabelWidth(w int) Option {
 	return func(m *Model) { m.SetLabelWidth(w) }
-}
-
-// WithBraille enables braille dot matrix mode (2x4 dots).
-func WithBraille() Option {
-	return func(m *Model) { m.SetMode(ModeBraille) }
 }
 
 // WithRenderer sets a custom chart renderer.
@@ -174,7 +185,6 @@ func New(w, h int, opts ...Option) *Model {
 		fill:      true,
 		smooth:    true,
 		lineWidth: 2,
-		mode:      ModeLines,
 		renderer:  LinesRenderer{},
 	}
 	for _, o := range opts {
@@ -293,8 +303,8 @@ func (m *Model) SetLabelWidth(w int) {
 }
 
 // SetMode sets the rendering mode (ModeLines or ModeBraille).
+// ModeCustom cannot be set: install the renderer with SetRenderer instead.
 func (m *Model) SetMode(mode RenderMode) {
-	m.mode = mode
 	switch mode {
 	case ModeBraille:
 		m.renderer = BrailleRenderer{}
@@ -303,23 +313,34 @@ func (m *Model) SetMode(mode RenderMode) {
 	}
 }
 
+// SetRenderer dynamically updates the chart renderer and synchronizes Mode().
+// A nil renderer falls back to LinesRenderer.
+func (m *Model) SetRenderer(r Renderer) {
+	if r == nil {
+		r = LinesRenderer{}
+	}
+	m.renderer = r
+}
+
+// Mode returns the current rendering mode derived from the active renderer.
+func (m *Model) Mode() RenderMode {
+	switch m.renderer.(type) {
+	case BrailleRenderer, *BrailleRenderer:
+		return ModeBraille
+	case LinesRenderer, *LinesRenderer:
+		return ModeLines
+	default:
+		return ModeCustom
+	}
+}
+
 // ToggleRenderMode switches between ModeLines and ModeBraille.
 func (m *Model) ToggleRenderMode() {
-	if m.mode == ModeLines {
+	if m.Mode() == ModeLines {
 		m.SetMode(ModeBraille)
 	} else {
 		m.SetMode(ModeLines)
 	}
-}
-
-// Mode returns the current rendering mode.
-func (m *Model) Mode() RenderMode {
-	return m.mode
-}
-
-// SetRenderer dynamically updates the chart renderer.
-func (m *Model) SetRenderer(r Renderer) {
-	m.renderer = r
 }
 
 // Renderer returns the current chart renderer.
@@ -372,7 +393,8 @@ func (m *Model) SeriesData(name string) []float64 {
 	return out
 }
 
-func (m *Model) seriesStyle(name string) lipgloss.Style {
+// SeriesStyle returns the style for a named series, or default line style.
+func (m *Model) SeriesStyle(name string) lipgloss.Style {
 	if s, ok := m.series[name]; ok && s.styled {
 		return s.style
 	}
@@ -383,7 +405,7 @@ func (m *Model) seriesStyle(name string) lipgloss.Style {
 func (m *Model) Legend() string {
 	parts := make([]string, 0, len(m.order))
 	for _, name := range m.order {
-		swatch := m.seriesStyle(name).Render("■")
+		swatch := m.SeriesStyle(name).Render("■")
 		parts = append(parts, swatch+" "+name)
 	}
 	return strings.Join(parts, "  ")
@@ -412,7 +434,7 @@ func (m *Model) LegendBox() string {
 	}
 	lines := make([]string, 0, len(m.order))
 	for _, name := range m.order {
-		swatch := m.seriesStyle(name).Render("■")
+		swatch := m.SeriesStyle(name).Render("■")
 		value := ""
 		if v, ok := m.Last(name); ok {
 			value = m.formatValue(v)
@@ -432,25 +454,25 @@ var brailleBits = [4][2]uint8{
 	{0x40, 0x80},
 }
 
-// dotCell maps a 2w x 4h coordinate into a Braille cell and its internal bit.
-func (m *Model) dotCell(xd, yd int) (row, col int, bit uint8, ok bool) {
-	dw, dh := m.w*2, m.h*4
+// dotCellOf maps a 2w x 4h coordinate into a Braille cell and its internal bit.
+func dotCellOf(w, h, xd, yd int) (row, col int, bit uint8, ok bool) {
+	dw, dh := w*2, h*4
 	if xd < 0 || yd < 0 || xd >= dw || yd >= dh {
 		return 0, 0, 0, false
 	}
 	rowFromBottom := yd / 4
 	dy := yd % 4
 	cx, dx := xd/2, xd%2
-	return m.h - 1 - rowFromBottom, cx, brailleBits[dy][dx], true
+	return h - 1 - rowFromBottom, cx, brailleBits[dy][dx], true
 }
 
-func (m *Model) setDot(grid [][]uint8, owner [][]int, idx, xd, yd int) {
+func plotDots(grid [][]uint8, owner [][]int, idx, lineWidth, w, h, xd, yd int) {
 	pts := [][2]int{{xd, yd}}
-	if m.lineWidth > 1 {
+	if lineWidth > 1 {
 		pts = append(pts, [2]int{xd + 1, yd}, [2]int{xd, yd + 1}, [2]int{xd + 1, yd + 1})
 	}
 	for _, p := range pts {
-		row, col, bit, ok := m.dotCell(p[0], p[1])
+		row, col, bit, ok := dotCellOf(w, h, p[0], p[1])
 		if !ok {
 			continue
 		}
@@ -459,22 +481,15 @@ func (m *Model) setDot(grid [][]uint8, owner [][]int, idx, xd, yd int) {
 	}
 }
 
-func (m *Model) span() float64 {
-	if m.max == m.min {
+func spanOf(min, max float64) float64 {
+	if max == min {
 		return 1
 	}
-	return m.max - m.min
+	return max - min
 }
 
-func (m *Model) dotH() int {
-	if dh := m.h*4 - 1; dh > 0 {
-		return dh
-	}
-	return 0
-}
-
-func (m *Model) norm(v float64) float64 {
-	norm := (v - m.min) / m.span()
+func normOf(min, max, v float64) float64 {
+	norm := (v - min) / spanOf(min, max)
 	if norm < 0 {
 		return 0
 	}
@@ -484,14 +499,26 @@ func (m *Model) norm(v float64) float64 {
 	return norm
 }
 
-// dotY maps a value to dot row offset from the bottom (for Braille).
-func (m *Model) dotY(v float64) int {
-	return int(math.Round(m.norm(v) * float64(m.dotH())))
+func dotHOf(h int) int {
+	if dh := h*4 - 1; dh > 0 {
+		return dh
+	}
+	return 0
+}
+
+// dotYOf maps a value to dot row offset from the bottom (for Braille).
+func dotYOf(h int, min, max, v float64) int {
+	return int(math.Round(normOf(min, max, v) * float64(dotHOf(h))))
+}
+
+// tickRowOf returns the terminal row index (0 at top to h-1 at bottom) for value v.
+func tickRowOf(h int, min, max, v float64) int {
+	return int(math.Round(float64(h-1) * (1.0 - normOf(min, max, v))))
 }
 
 // tickRow returns the terminal row index (0 at top to h-1 at bottom) for value v.
 func (m *Model) tickRow(v float64) int {
-	return int(math.Round(float64(m.h-1) * (1.0 - m.norm(v))))
+	return tickRowOf(m.h, m.min, m.max, v)
 }
 
 // maxGridTicks calculates an appropriate grid tick count based on chart height.
@@ -523,8 +550,8 @@ func catmullRom(p0, p1, p2, p3, t float64) float64 {
 	return 0.5 * ((2 * p1) + (-p0+p2)*t + (2*p0-5*p1+4*p2-p3)*t2 + (-p0+3*p1-3*p2+p3)*t3)
 }
 
-func (m *Model) clampDot(xd, yd int) (int, int) {
-	maxX := m.w*2 - 1
+func clampDotOf(w, h, xd, yd int) (int, int) {
+	maxX := w*2 - 1
 	if maxX < 0 {
 		maxX = 0
 	}
@@ -534,17 +561,18 @@ func (m *Model) clampDot(xd, yd int) (int, int) {
 	if xd > maxX {
 		xd = maxX
 	}
+	dh := dotHOf(h)
 	if yd < 0 {
 		yd = 0
 	}
-	if yd > m.dotH() {
-		yd = m.dotH()
+	if yd > dh {
+		yd = dh
 	}
 	return xd, yd
 }
 
-// sampleLine interpolates the polyline into dots: Catmull-Rom spline if smooth, otherwise line segments.
-func (m *Model) sampleLine(xs, ys []int) []dot {
+// sampleLineOf interpolates the polyline into dots: Catmull-Rom spline if smooth, otherwise line segments.
+func sampleLineOf(w, h int, smooth bool, xs, ys []int) []dot {
 	out := []dot{{xs[0], ys[0]}}
 	n := len(xs)
 	for i := 0; i < n-1; i++ {
@@ -562,7 +590,7 @@ func (m *Model) sampleLine(xs, ys []int) []dot {
 		}
 		dx, dy := x1-x0, y1-y0
 		steps := 1
-		if m.smooth {
+		if smooth {
 			steps = int((math.Abs(dx) + math.Abs(dy)) * 2)
 			if steps < 8 {
 				steps = 8
@@ -582,22 +610,24 @@ func (m *Model) sampleLine(xs, ys []int) []dot {
 		for s := 1; s <= steps; s++ {
 			t := float64(s) / float64(steps)
 			var fx, fy float64
-			if m.smooth {
+			if smooth {
 				fx = catmullRom(px0, x0, x1, px3, t)
 				fy = catmullRom(py0, y0, y1, py3, t)
 			} else {
 				fx = x0 + dx*t
 				fy = y0 + dy*t
 			}
-			xd, yd := m.clampDot(int(math.Round(fx)), int(math.Round(fy)))
+			xd, yd := clampDotOf(w, h, int(math.Round(fx)), int(math.Round(fy)))
 			out = append(out, dot{xd, yd})
 		}
 	}
 	return out
 }
 
-func (m *Model) plotSeriesBraille(grid [][]uint8, owner [][]int, idx int, data []float64) []int {
-	colTop := make([]int, m.w*2)
+func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, idx int, data []float64) []int {
+	w, h := c.Width(), c.Height()
+	min, max := c.Min(), c.Max()
+	colTop := make([]int, w*2)
 	for i := range colTop {
 		colTop[i] = -1
 	}
@@ -605,11 +635,11 @@ func (m *Model) plotSeriesBraille(grid [][]uint8, owner [][]int, idx int, data [
 	if n == 0 {
 		return colTop
 	}
-	window := m.w
+	window := w
 	if window < 1 {
 		window = 1
 	}
-	dw := m.w*2 - 1
+	dw := w*2 - 1
 	if dw < 0 {
 		dw = 0
 	}
@@ -621,15 +651,15 @@ func (m *Model) plotSeriesBraille(grid [][]uint8, owner [][]int, idx int, data [
 	ys := make([]int, n)
 	for j, v := range data {
 		xd := (window - n + j) * dw / den
-		xs[j], ys[j] = xd, m.dotY(v)
+		xs[j], ys[j] = xd, dotYOf(h, min, max, v)
 	}
 	top := func(xd, yd int) {
 		if xd >= 0 && xd < len(colTop) && yd > colTop[xd] {
 			colTop[xd] = yd
 		}
 	}
-	for _, d := range m.sampleLine(xs, ys) {
-		m.setDot(grid, owner, idx, d.x, d.y)
+	for _, d := range sampleLineOf(w, h, c.Smooth(), xs, ys) {
+		plotDots(grid, owner, idx, c.LineWidth(), w, h, d.x, d.y)
 		top(d.x, d.y)
 	}
 	return colTop
@@ -676,21 +706,21 @@ var (
 	}
 )
 
-func (m *Model) glyphs() lineGlyphs {
-	if m.lineWidth > 1 {
-		if !m.smooth {
+func glyphsFor(lineWidth int, smooth bool) lineGlyphs {
+	if lineWidth > 1 {
+		if !smooth {
 			return glyphsBoldSharp
 		}
 		return glyphsBoldRounded
 	}
-	if m.smooth {
+	if smooth {
 		return glyphsThinRounded
 	}
 	return glyphsThinSharp
 }
 
-func (m *Model) runeForMask(mask uint8) rune {
-	g := m.glyphs()
+func runeForMask(lineWidth int, smooth bool, mask uint8) rune {
+	g := glyphsFor(lineWidth, smooth)
 	switch mask {
 	case armUp, armDown, armUp | armDown:
 		return g.vert
@@ -720,12 +750,14 @@ func (m *Model) runeForMask(mask uint8) rune {
 }
 
 // plotSeriesLines renders a smooth continuous box-drawing line and shaded area fill ░.
-func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask [][]bool, fillOwner [][]int, idx int, data []float64) {
+func plotSeriesLines(c Chart, lineMask [][]uint8, lineOwner [][]int, fillMask [][]bool, fillOwner [][]int, idx int, data []float64) {
+	w, h := c.Width(), c.Height()
+	min, max := c.Min(), c.Max()
 	n := len(data)
 	if n == 0 {
 		return
 	}
-	window := m.w
+	window := w
 	startCol := window - n
 	if startCol < 0 {
 		startCol = 0
@@ -736,7 +768,7 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 	ys := make([]int, window)
 	for j, v := range data {
 		c := startCol + j
-		ys[c] = int(math.Round(float64(m.h-1) * (1.0 - m.norm(v))))
+		ys[c] = tickRowOf(h, min, max, v)
 	}
 
 	for c := startCol + 1; c < window; c++ {
@@ -774,19 +806,19 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 	if n == 1 {
 		lineMask[ys[startCol]][startCol] |= (armLeft | armRight)
 		lineOwner[ys[startCol]][startCol] = idx
-	} else if ys[startCol] >= 0 && ys[startCol] < m.h {
+	} else if ys[startCol] >= 0 && ys[startCol] < h {
 		lineMask[ys[startCol]][startCol] |= armLeft
 		lineOwner[ys[startCol]][startCol] = idx
 	}
 
 	// Baseline for area fill (0 by default)
-	baseRow := int(math.Round(float64(m.h-1) * (1.0 - m.norm(0))))
+	baseRow := tickRowOf(h, min, max, 0)
 
 	// Shaded area fill ░ below the line (strictly beneath the line's lower boundary in each column)
-	if m.fill {
+	if c.Fill() {
 		for c := startCol; c < window; c++ {
 			bottomY := -1
-			for r := m.h - 1; r >= 0; r-- {
+			for r := h - 1; r >= 0; r-- {
 				if lineOwner[r][c] == idx {
 					bottomY = r
 					break
@@ -799,7 +831,7 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 			if lo > hi {
 				lo, hi = baseRow, bottomY-1
 			}
-			for y := lo; y <= hi && y < m.h; y++ {
+			for y := lo; y <= hi && y < h; y++ {
 				if y >= 0 {
 					fillMask[y][c] = true
 					fillOwner[y][c] = idx
@@ -809,15 +841,15 @@ func (m *Model) plotSeriesLines(lineMask [][]uint8, lineOwner [][]int, fillMask 
 	}
 }
 
-func (m *Model) styleFor(owner int, styles []lipgloss.Style) lipgloss.Style {
+func styleFor(owner int, styles []lipgloss.Style, fallback lipgloss.Style) lipgloss.Style {
 	if owner >= 0 && owner < len(styles) {
 		return styles[owner]
 	}
-	return m.lineStyle
+	return fallback
 }
 
-func (m *Model) faintStyleFor(owner int, styles []lipgloss.Style) lipgloss.Style {
-	return m.styleFor(owner, styles).Faint(true)
+func faintStyleFor(owner int, styles []lipgloss.Style, fallback lipgloss.Style) lipgloss.Style {
+	return styleFor(owner, styles, fallback).Faint(true)
 }
 
 func gridCell(h, v bool) string {
@@ -886,7 +918,7 @@ func (m *Model) View() string {
 	names = append(names, m.order...)
 	styles := make([]lipgloss.Style, len(names))
 	for idx, name := range names {
-		styles[idx] = m.seriesStyle(name)
+		styles[idx] = m.SeriesStyle(name)
 	}
 
 	gridStyle := m.axisStyle.Faint(true)
@@ -903,11 +935,7 @@ func (m *Model) View() string {
 
 	r := m.renderer
 	if r == nil {
-		if m.mode == ModeBraille {
-			r = BrailleRenderer{}
-		} else {
-			r = LinesRenderer{}
-		}
+		r = LinesRenderer{}
 	}
 	return r.Render(m, ctx)
 }
@@ -917,23 +945,25 @@ func (m *Model) String() string {
 	return m.View()
 }
 
-func (m *Model) renderGrid(ctx RenderContext, cellAt func(r, c int) (string, bool)) string {
+func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)) string {
+	w, h := c.Width(), c.Height()
+	axis := c.AxisStyle().Render("│")
 	var sb strings.Builder
-	for r := 0; r < m.h; r++ {
+	for r := 0; r < h; r++ {
 		sb.WriteString(ctx.LabelStyle.Render(ctx.RowLabel[r]))
-		sb.WriteString(m.axisStyle.Render("│"))
-		for c := 0; c < m.w; c++ {
-			if s, ok := cellAt(r, c); ok {
+		sb.WriteString(axis)
+		for col := 0; col < w; col++ {
+			if s, ok := cellAt(r, col); ok {
 				sb.WriteString(s)
 				continue
 			}
-			if ctx.HGrid[r] || ctx.VGrid[c] {
-				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[c])))
+			if ctx.HGrid[r] || ctx.VGrid[col] {
+				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[col])))
 				continue
 			}
 			sb.WriteByte(' ')
 		}
-		if r < m.h-1 {
+		if r < h-1 {
 			sb.WriteByte('\n')
 		}
 	}
@@ -941,28 +971,26 @@ func (m *Model) renderGrid(ctx RenderContext, cellAt func(r, c int) (string, boo
 }
 
 // Render implements Renderer for LinesRenderer.
-func (LinesRenderer) Render(m *Model, ctx RenderContext) string {
-	lineMask := makeCells(m.h, m.w, uint8(0))
-	lineOwner := makeCells(m.h, m.w, -1)
-	fillMask := makeCells(m.h, m.w, false)
-	fillOwner := makeCells(m.h, m.w, -1)
+func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
+	w, h := c.Width(), c.Height()
+	lineMask := makeCells(h, w, uint8(0))
+	lineOwner := makeCells(h, w, -1)
+	fillMask := makeCells(h, w, false)
+	fillOwner := makeCells(h, w, -1)
 
 	for idx, name := range ctx.Names {
-		s, ok := m.series[name]
-		if !ok {
-			continue
-		}
-		m.plotSeriesLines(lineMask, lineOwner, fillMask, fillOwner, idx, s.data)
+		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, idx, c.SeriesData(name))
 	}
 
-	return m.renderGrid(ctx, func(r, c int) (string, bool) {
-		if lineMask[r][c] != 0 {
-			st := m.styleFor(lineOwner[r][c], ctx.Styles)
-			ru := m.runeForMask(lineMask[r][c])
+	fallback, glyphWidth, glyphSmooth := c.LineStyle(), c.LineWidth(), c.Smooth()
+	return renderGrid(c, ctx, func(r, col int) (string, bool) {
+		if lineMask[r][col] != 0 {
+			st := styleFor(lineOwner[r][col], ctx.Styles, fallback)
+			ru := runeForMask(glyphWidth, glyphSmooth, lineMask[r][col])
 			return st.Render(string(ru)), true
 		}
-		if fillMask[r][c] {
-			st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
+		if fillMask[r][col] {
+			st := faintStyleFor(fillOwner[r][col], ctx.Styles, fallback)
 			return st.Render("░"), true
 		}
 		return "", false
@@ -970,20 +998,17 @@ func (LinesRenderer) Render(m *Model, ctx RenderContext) string {
 }
 
 // Render implements Renderer for BrailleRenderer.
-func (BrailleRenderer) Render(m *Model, ctx RenderContext) string {
-	grid := makeCells(m.h, m.w, uint8(0))
-	owner := makeCells(m.h, m.w, -1)
-	fillMask := makeCells(m.h, m.w, uint8(0))
-	fillOwner := makeCells(m.h, m.w, -1)
+func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
+	w, h := c.Width(), c.Height()
+	grid := makeCells(h, w, uint8(0))
+	owner := makeCells(h, w, -1)
+	fillMask := makeCells(h, w, uint8(0))
+	fillOwner := makeCells(h, w, -1)
 
-	base := m.dotY(0)
+	base := dotYOf(h, c.Min(), c.Max(), 0)
 	for idx, name := range ctx.Names {
-		s, ok := m.series[name]
-		if !ok {
-			continue
-		}
-		colTop := m.plotSeriesBraille(grid, owner, idx, s.data)
-		if !m.fill {
+		colTop := plotSeriesBraille(c, grid, owner, idx, c.SeriesData(name))
+		if !c.Fill() {
 			continue
 		}
 		for xd, top := range colTop {
@@ -991,7 +1016,7 @@ func (BrailleRenderer) Render(m *Model, ctx RenderContext) string {
 				if xd%2 != 0 || yd%2 != 0 {
 					continue
 				}
-				row, col, bit, ok := m.dotCell(xd, yd)
+				row, col, bit, ok := dotCellOf(w, h, xd, yd)
 				if !ok {
 					continue
 				}
@@ -1001,14 +1026,15 @@ func (BrailleRenderer) Render(m *Model, ctx RenderContext) string {
 		}
 	}
 
-	return m.renderGrid(ctx, func(r, c int) (string, bool) {
-		if grid[r][c] != 0 {
-			st := m.styleFor(owner[r][c], ctx.Styles)
-			return st.Render(string(rune(0x2800 + int(grid[r][c])))), true
+	fallback := c.LineStyle()
+	return renderGrid(c, ctx, func(r, col int) (string, bool) {
+		if grid[r][col] != 0 {
+			st := styleFor(owner[r][col], ctx.Styles, fallback)
+			return st.Render(string(rune(0x2800 + int(grid[r][col])))), true
 		}
-		if fillMask[r][c] != 0 {
-			st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
-			return st.Render(string(rune(0x2800 + int(fillMask[r][c])))), true
+		if fillMask[r][col] != 0 {
+			st := faintStyleFor(fillOwner[r][col], ctx.Styles, fallback)
+			return st.Render(string(rune(0x2800 + int(fillMask[r][col])))), true
 		}
 		return "", false
 	})

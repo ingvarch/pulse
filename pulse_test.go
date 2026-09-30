@@ -366,7 +366,7 @@ func TestLineChart_Stringer(t *testing.T) {
 
 type testCustomRenderer struct{}
 
-func (testCustomRenderer) Render(m *pulse.Model, ctx pulse.RenderContext) string {
+func (testCustomRenderer) Render(m pulse.Chart, ctx pulse.RenderContext) string {
 	return fmt.Sprintf("custom[%dx%d]:%d", m.Width(), m.Height(), len(ctx.Names))
 }
 
@@ -445,5 +445,23 @@ func TestLineChart_CustomTicks_SortAndDeduplicate(t *testing.T) {
 	}
 	if !strings.Contains(lines[len(lines)-1], "0") {
 		t.Fatalf("expected bottom line to contain 0, got: %q", lines[len(lines)-1])
+	}
+}
+
+type stubRenderer struct{}
+
+func (stubRenderer) Render(_ pulse.Chart, _ pulse.RenderContext) string {
+	return "CUSTOM"
+}
+
+func TestRenderer_CustomOverridesViewAndMode(t *testing.T) {
+	lc := pulse.New(20, 8, pulse.WithRange(0, 100))
+	lc.Push(50)
+	lc.SetRenderer(stubRenderer{})
+	if got := lc.Mode(); got != pulse.ModeCustom {
+		t.Fatalf("Mode() = %v, want ModeCustom", got)
+	}
+	if got := lc.View(); got != "CUSTOM" {
+		t.Fatalf("View() = %q, want custom renderer output", got)
 	}
 }

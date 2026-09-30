@@ -7,6 +7,17 @@ import (
 	"github.com/ingvarch/pulse/scale"
 )
 
+func TestView_NilRendererFallsBackToLines(t *testing.T) {
+	m := New(20, 8, WithRange(0, 100))
+	m.Push(50)
+	m.renderer = nil
+	want := New(20, 8, WithRange(0, 100))
+	want.Push(50)
+	if got := m.View(); got != want.View() {
+		t.Fatalf("nil renderer must render like ModeLines, got:\n%s", got)
+	}
+}
+
 // TestLineChart_LabelsSitOnGridlines verifies each label sits exactly on its gridline row.
 func TestLineChart_LabelsSitOnGridlines(t *testing.T) {
 	m := New(20, 10, WithRange(0, 100), WithGrid(true), WithFill(false))
