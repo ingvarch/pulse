@@ -44,11 +44,9 @@ type Model struct {
 }
 
 type series struct {
-	data     []float64
-	style    lipgloss.Style
-	styled   bool
-	last     float64
-	hasValue bool
+	data   []float64
+	style  lipgloss.Style
+	styled bool
 }
 
 // Option configures a Model.
@@ -56,19 +54,17 @@ type Option func(*Model)
 
 // WithRange sets the fixed Y range. For example, WithRange(0, 100) for CPU/RAM.
 func WithRange(min, max float64) Option {
-	return func(m *Model) {
-		m.min, m.max = min, max
-	}
+	return func(m *Model) { m.SetRange(min, max) }
 }
 
 // WithLineStyle sets the default line style.
 func WithLineStyle(s lipgloss.Style) Option {
-	return func(m *Model) { m.lineStyle = s }
+	return func(m *Model) { m.SetLineStyle(s) }
 }
 
 // WithAxisStyle sets the axes and labels style.
 func WithAxisStyle(s lipgloss.Style) Option {
-	return func(m *Model) { m.axisStyle = s }
+	return func(m *Model) { m.SetAxisStyle(s) }
 }
 
 // WithSeriesStyle sets the style for a named series.
@@ -78,17 +74,17 @@ func WithSeriesStyle(name string, s lipgloss.Style) Option {
 
 // WithGrid enables or disables gridlines at tick positions.
 func WithGrid(on bool) Option {
-	return func(m *Model) { m.grid = on }
+	return func(m *Model) { m.SetGrid(on) }
 }
 
 // WithFill enables or disables area fill under the line.
 func WithFill(on bool) Option {
-	return func(m *Model) { m.fill = on }
+	return func(m *Model) { m.SetFill(on) }
 }
 
 // WithSmooth enables or disables line smoothing (rounded corners or spline).
 func WithSmooth(on bool) Option {
-	return func(m *Model) { m.smooth = on }
+	return func(m *Model) { m.SetSmooth(on) }
 }
 
 // WithLineWidth sets line width: 1 thin, 2 bold.
@@ -98,32 +94,32 @@ func WithLineWidth(w int) Option {
 
 // WithMode sets rendering mode (ModeLines or ModeBraille).
 func WithMode(mode RenderMode) Option {
-	return func(m *Model) { m.mode = mode }
+	return func(m *Model) { m.SetMode(mode) }
 }
 
 // WithLines enables continuous line rendering mode.
 func WithLines() Option {
-	return func(m *Model) { m.mode = ModeLines }
+	return func(m *Model) { m.SetMode(ModeLines) }
 }
 
 // WithTicks sets explicit Y-axis tick values (e.g. 0, 25, 50, 75, 100 or 0, 50, 100).
 func WithTicks(ticks ...float64) Option {
-	return func(m *Model) { m.customTicks = ticks }
+	return func(m *Model) { m.SetTicks(ticks...) }
 }
 
 // WithLabelFormatter sets a custom formatter for Y-axis tick values.
 func WithLabelFormatter(fn func(float64) string) Option {
-	return func(m *Model) { m.labelFormatter = fn }
+	return func(m *Model) { m.SetLabelFormatter(fn) }
 }
 
 // WithLabelWidth sets an explicit width for Y-axis labels.
 func WithLabelWidth(w int) Option {
-	return func(m *Model) { m.labelWidth = w }
+	return func(m *Model) { m.SetLabelWidth(w) }
 }
 
 // WithBraille enables braille dot matrix mode (2x4 dots).
 func WithBraille() Option {
-	return func(m *Model) { m.mode = ModeBraille }
+	return func(m *Model) { m.SetMode(ModeBraille) }
 }
 
 // New creates a chart for a w x h cells plot area.
@@ -179,7 +175,6 @@ func (m *Model) PushSeries(name string, v float64) {
 	if len(s.data) > m.w {
 		s.data = s.data[len(s.data)-m.w:]
 	}
-	s.last, s.hasValue = v, true
 }
 
 // Len returns the number of points in the default series within the window.
@@ -192,6 +187,14 @@ func (m *Model) LenSeries(name string) int {
 		return 0
 	}
 	return len(s.data)
+}
+
+// SetRange dynamically sets the Y-axis range.
+func (m *Model) SetRange(min, max float64) {
+	if min == max {
+		max = min + 1
+	}
+	m.min, m.max = min, max
 }
 
 // SetLineStyle dynamically updates the line style.
@@ -285,10 +288,10 @@ func (m *Model) Legend() string {
 // Last returns the most recent value of a named series.
 func (m *Model) Last(name string) (float64, bool) {
 	s, ok := m.series[name]
-	if !ok || !s.hasValue {
+	if !ok || len(s.data) == 0 {
 		return 0, false
 	}
-	return s.last, true
+	return s.data[len(s.data)-1], true
 }
 
 func (m *Model) formatValue(v float64) string {
