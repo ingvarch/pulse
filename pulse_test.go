@@ -313,3 +313,19 @@ func TestLineChart_Stringer(t *testing.T) {
 		t.Fatalf("expected String() to match View()")
 	}
 }
+
+type testCustomRenderer struct{}
+
+func (testCustomRenderer) Render(m *pulse.Model, ctx pulse.RenderContext) string {
+	return fmt.Sprintf("custom[%dx%d]:%d", m.Width(), m.Height(), len(ctx.Names))
+}
+
+func TestLineChart_CustomRenderer(t *testing.T) {
+	lc := pulse.New(30, 10, pulse.WithRenderer(testCustomRenderer{}))
+	lc.PushSeries("s1", 42)
+	got := lc.View()
+	want := "custom[30x10]:2" // "" default series + "s1"
+	if got != want {
+		t.Fatalf("expected custom renderer output %q, got %q", want, got)
+	}
+}

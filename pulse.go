@@ -20,6 +20,33 @@ const (
 	ModeBraille
 )
 
+// RenderContext contains prepared axis, tick, label, and style metadata passed to a Renderer.
+type RenderContext struct {
+	FmtStr    string
+	RowLabel  map[int]string
+	HGrid     []bool
+	VGrid     []bool
+	Names     []string
+	Styles    []lipgloss.Style
+	GridStyle lipgloss.Style
+}
+
+// Renderer defines how chart series data and axes are rendered into a string.
+type Renderer interface {
+	Render(m *Model, ctx RenderContext) string
+}
+
+// LinesRenderer renders smooth box-drawing lines with optional area fill.
+type LinesRenderer struct{}
+
+// BrailleRenderer renders 2x4 dot Braille patterns.
+type BrailleRenderer struct{}
+
+var (
+	_ Renderer = LinesRenderer{}
+	_ Renderer = BrailleRenderer{}
+)
+
 // Model is a streaming terminal line chart.
 type Model struct {
 	w, h     int
@@ -33,6 +60,7 @@ type Model struct {
 	smooth    bool
 	lineWidth int
 	mode      RenderMode
+	renderer  Renderer
 
 	lineStyle lipgloss.Style
 	axisStyle lipgloss.Style
@@ -122,6 +150,11 @@ func WithBraille() Option {
 	return func(m *Model) { m.SetMode(ModeBraille) }
 }
 
+// WithRenderer sets a custom chart renderer.
+func WithRenderer(r Renderer) Option {
+	return func(m *Model) { m.SetRenderer(r) }
+}
+
 // New creates a chart for a w x h cells plot area.
 func New(w, h int, opts ...Option) *Model {
 	if w < 1 {
@@ -141,6 +174,7 @@ func New(w, h int, opts ...Option) *Model {
 		smooth:    true,
 		lineWidth: 2,
 		mode:      ModeLines,
+		renderer:  LinesRenderer{},
 	}
 	for _, o := range opts {
 		o(m)
@@ -252,20 +286,81 @@ func (m *Model) SetLabelWidth(w int) {
 // SetMode sets the rendering mode (ModeLines or ModeBraille).
 func (m *Model) SetMode(mode RenderMode) {
 	m.mode = mode
+	switch mode {
+	case ModeBraille:
+		m.renderer = BrailleRenderer{}
+	default:
+		m.renderer = LinesRenderer{}
+	}
 }
 
 // ToggleRenderMode switches between ModeLines and ModeBraille.
 func (m *Model) ToggleRenderMode() {
 	if m.mode == ModeLines {
-		m.mode = ModeBraille
+		m.SetMode(ModeBraille)
 	} else {
-		m.mode = ModeLines
+		m.SetMode(ModeLines)
 	}
 }
 
 // Mode returns the current rendering mode.
 func (m *Model) Mode() RenderMode {
 	return m.mode
+}
+
+// SetRenderer dynamically updates the chart renderer.
+func (m *Model) SetRenderer(r Renderer) {
+	m.renderer = r
+}
+
+// Renderer returns the current chart renderer.
+func (m *Model) Renderer() Renderer {
+	return m.renderer
+}
+
+// Width returns the chart plot width in terminal cells.
+func (m *Model) Width() int { return m.w }
+
+// Height returns the chart plot height in terminal cells.
+func (m *Model) Height() int { return m.h }
+
+// Min returns the chart minimum Y value.
+func (m *Model) Min() float64 { return m.min }
+
+// Max returns the chart maximum Y value.
+func (m *Model) Max() float64 { return m.max }
+
+// Fill returns whether area fill is enabled.
+func (m *Model) Fill() bool { return m.fill }
+
+// Grid returns whether grid lines are enabled.
+func (m *Model) Grid() bool { return m.grid }
+
+// Smooth returns whether line smoothing is enabled.
+func (m *Model) Smooth() bool { return m.smooth }
+
+// AxisStyle returns the axis lipgloss style.
+func (m *Model) AxisStyle() lipgloss.Style { return m.axisStyle }
+
+// LineStyle returns the default line lipgloss style.
+func (m *Model) LineStyle() lipgloss.Style { return m.lineStyle }
+
+// SeriesNames returns registered series names in order.
+func (m *Model) SeriesNames() []string {
+	out := make([]string, len(m.order))
+	copy(out, m.order)
+	return out
+}
+
+// SeriesData returns a copy of data points for a series.
+func (m *Model) SeriesData(name string) []float64 {
+	s, ok := m.series[name]
+	if !ok {
+		return nil
+	}
+	out := make([]float64, len(s.data))
+	copy(out, s.data)
+	return out
 }
 
 func (m *Model) seriesStyle(name string) lipgloss.Style {
@@ -786,11 +881,25 @@ func (m *Model) View() string {
 	}
 
 	gridStyle := m.axisStyle.Faint(true)
-
-	if m.mode == ModeLines {
-		return m.renderLines(fmtStr, rowLabel, hGrid, vGrid, names, styles, gridStyle)
+	ctx := RenderContext{
+		FmtStr:    fmtStr,
+		RowLabel:  rowLabel,
+		HGrid:     hGrid,
+		VGrid:     vGrid,
+		Names:     names,
+		Styles:    styles,
+		GridStyle: gridStyle,
 	}
-	return m.renderBraille(fmtStr, rowLabel, hGrid, vGrid, names, styles, gridStyle)
+
+	r := m.renderer
+	if r == nil {
+		if m.mode == ModeBraille {
+			r = BrailleRenderer{}
+		} else {
+			r = LinesRenderer{}
+		}
+	}
+	return r.Render(m, ctx)
 }
 
 // String implements fmt.Stringer, returning the rendered chart View().
@@ -798,13 +907,14 @@ func (m *Model) String() string {
 	return m.View()
 }
 
-func (m *Model) renderLines(fmtStr string, rowLabel map[int]string, hGrid, vGrid []bool, names []string, styles []lipgloss.Style, gridStyle lipgloss.Style) string {
+// Render implements Renderer for LinesRenderer.
+func (LinesRenderer) Render(m *Model, ctx RenderContext) string {
 	lineMask := makeCells(m.h, m.w, uint8(0))
 	lineOwner := makeCells(m.h, m.w, -1)
 	fillMask := makeCells(m.h, m.w, false)
 	fillOwner := makeCells(m.h, m.w, -1)
 
-	for idx, name := range names {
+	for idx, name := range ctx.Names {
 		s, ok := m.series[name]
 		if !ok {
 			continue
@@ -814,22 +924,22 @@ func (m *Model) renderLines(fmtStr string, rowLabel map[int]string, hGrid, vGrid
 
 	var sb strings.Builder
 	for r := 0; r < m.h; r++ {
-		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
+		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(ctx.FmtStr, ctx.RowLabel[r])))
 		sb.WriteString(m.axisStyle.Render("│"))
 		for c := 0; c < m.w; c++ {
 			if lineMask[r][c] != 0 {
-				st := m.styleFor(lineOwner[r][c], styles)
+				st := m.styleFor(lineOwner[r][c], ctx.Styles)
 				ru := m.runeForMask(lineMask[r][c])
 				sb.WriteString(st.Render(string(ru)))
 				continue
 			}
 			if fillMask[r][c] {
-				st := m.faintStyleFor(fillOwner[r][c], styles)
+				st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
 				sb.WriteString(st.Render("░"))
 				continue
 			}
-			if hGrid[r] || vGrid[c] {
-				sb.WriteString(gridStyle.Render(gridCell(hGrid[r], vGrid[c])))
+			if ctx.HGrid[r] || ctx.VGrid[c] {
+				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[c])))
 				continue
 			}
 			sb.WriteByte(' ')
@@ -841,14 +951,15 @@ func (m *Model) renderLines(fmtStr string, rowLabel map[int]string, hGrid, vGrid
 	return sb.String()
 }
 
-func (m *Model) renderBraille(fmtStr string, rowLabel map[int]string, hGrid, vGrid []bool, names []string, styles []lipgloss.Style, gridStyle lipgloss.Style) string {
+// Render implements Renderer for BrailleRenderer.
+func (BrailleRenderer) Render(m *Model, ctx RenderContext) string {
 	grid := makeCells(m.h, m.w, uint8(0))
 	owner := makeCells(m.h, m.w, -1)
 	fillMask := makeCells(m.h, m.w, uint8(0))
 	fillOwner := makeCells(m.h, m.w, -1)
 
 	base := m.dotY(0)
-	for idx, name := range names {
+	for idx, name := range ctx.Names {
 		s, ok := m.series[name]
 		if !ok {
 			continue
@@ -874,21 +985,21 @@ func (m *Model) renderBraille(fmtStr string, rowLabel map[int]string, hGrid, vGr
 
 	var sb strings.Builder
 	for r := 0; r < m.h; r++ {
-		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(fmtStr, rowLabel[r])))
+		sb.WriteString(m.axisStyle.Render(fmt.Sprintf(ctx.FmtStr, ctx.RowLabel[r])))
 		sb.WriteString(m.axisStyle.Render("│"))
 		for c := 0; c < m.w; c++ {
 			if grid[r][c] != 0 {
-				st := m.styleFor(owner[r][c], styles)
+				st := m.styleFor(owner[r][c], ctx.Styles)
 				sb.WriteString(st.Render(string(rune(0x2800 + int(grid[r][c])))))
 				continue
 			}
 			if fillMask[r][c] != 0 {
-				st := m.faintStyleFor(fillOwner[r][c], styles)
+				st := m.faintStyleFor(fillOwner[r][c], ctx.Styles)
 				sb.WriteString(st.Render(string(rune(0x2800 + int(fillMask[r][c])))))
 				continue
 			}
-			if hGrid[r] || vGrid[c] {
-				sb.WriteString(gridStyle.Render(gridCell(hGrid[r], vGrid[c])))
+			if ctx.HGrid[r] || ctx.VGrid[c] {
+				sb.WriteString(ctx.GridStyle.Render(gridCell(ctx.HGrid[r], ctx.VGrid[c])))
 				continue
 			}
 			sb.WriteByte(' ')
