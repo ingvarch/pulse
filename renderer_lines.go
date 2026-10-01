@@ -96,7 +96,17 @@ func runeForMask(lineWidth int, smooth bool, mask uint8) rune {
 }
 
 // plotSeriesLines renders a smooth continuous box-drawing line and shaded area fill ░.
-func plotSeriesLines(c Chart, lineMask [][]uint8, lineOwner [][]int, fillMask [][]bool, fillOwner [][]int, idx int, data []float64) {
+func plotSeriesLines(
+	c Chart,
+	lineMask [][]uint8,
+	lineOwner [][]int,
+	fillMask [][]bool,
+	fillOwner [][]int,
+	fillAbove, fillBelow []bool,
+	fillAboveOwner, fillBelowOwner []int,
+	idx int,
+	data []float64,
+) {
 	w, h := c.Width(), c.Height()
 	min, max := c.Min(), c.Max()
 	n := len(data)
@@ -159,28 +169,64 @@ func plotSeriesLines(c Chart, lineMask [][]uint8, lineOwner [][]int, fillMask []
 
 	// Baseline for area fill (0 by default)
 	baseRow := tickRowOf(h, min, max, 0)
+	hasZeroBaseline := c.ZeroBaseline() && min <= 0 && max >= 0
 
 	// Shaded area fill ░ below the line (strictly beneath the line's lower boundary in each column)
 	if c.Fill() {
 		for col := startCol; col < window; col++ {
 			bottomY := -1
+			topY := -1
 			for r := h - 1; r >= 0; r-- {
 				if lineOwner[r][col] == idx {
 					bottomY = r
 					break
 				}
 			}
+			for r := 0; r < h; r++ {
+				if lineOwner[r][col] == idx {
+					topY = r
+					break
+				}
+			}
 			if bottomY < 0 {
 				bottomY = ys[col]
 			}
-			lo, hi := bottomY+1, baseRow
-			if lo > hi {
-				lo, hi = baseRow, bottomY-1
+			if topY < 0 {
+				topY = ys[col]
 			}
-			for y := lo; y <= hi && y < h; y++ {
-				if y >= 0 {
-					fillMask[y][col] = true
-					fillOwner[y][col] = idx
+
+			if hasZeroBaseline {
+				if bottomY < baseRow {
+					// Strictly positive: fill from bottomY + 1 down to baseRow - 1
+					for y := bottomY + 1; y < baseRow && y < h; y++ {
+						if y >= 0 {
+							fillMask[y][col] = true
+							fillOwner[y][col] = idx
+						}
+					}
+					fillAbove[col] = true
+					fillAboveOwner[col] = idx
+				} else if topY > baseRow {
+					// Strictly negative: fill from baseRow + 1 down to topY - 1
+					for y := baseRow + 1; y < topY && y < h; y++ {
+						if y >= 0 {
+							fillMask[y][col] = true
+							fillOwner[y][col] = idx
+						}
+					}
+					fillBelow[col] = true
+					fillBelowOwner[col] = idx
+				}
+			} else {
+				lo, hi := bottomY+1, baseRow
+				if lo > hi {
+					lo, hi = baseRow, bottomY-1
+				}
+				for y := lo; y <= hi && y < h; y++ {
+					if y >= 0 {
+						fillMask[y][col] = true
+						fillOwner[y][col] = idx
+					}
 				}
 			}
 		}
@@ -195,6 +241,15 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 	fillMask := makeCells(h, w, false)
 	fillOwner := makeCells(h, w, -1)
 
+	fillAbove := make([]bool, w)
+	fillBelow := make([]bool, w)
+	fillAboveOwner := make([]int, w)
+	fillBelowOwner := make([]int, w)
+	for i := range fillAboveOwner {
+		fillAboveOwner[i] = -1
+		fillBelowOwner[i] = -1
+	}
+
 	for idx, name := range ctx.Names {
 		var data []float64
 		if idx < len(ctx.SeriesData) && ctx.SeriesData[idx] != nil {
@@ -202,7 +257,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		} else {
 			data = c.SeriesData(name)
 		}
-		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, idx, data)
+		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, fillAbove, fillBelow, fillAboveOwner, fillBelowOwner, idx, data)
 	}
 
 	eventMap := eventsByColumn(c.VisibleEvents())
@@ -210,13 +265,16 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 	fallback, glyphWidth, glyphSmooth := c.LineStyle(), c.LineWidth(), c.Smooth()
 	tinted := c.TintedFill()
 	solid := c.SolidFill()
+	isZero := c.ZeroBaseline() && ctx.ZeroRow >= 0
+
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
 		ve, hasEvent := eventMap[col]
 		if hasEvent && r == 0 {
 			return renderEventPin(ve), true
 		}
 		if lineMask[r][col] != 0 {
-			st := styleFor(lineOwner[r][col], ctx.Styles, fallback)
+			isNeg := (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && c.Max() < 0)
+			st := styleFor(lineOwner[r][col], isNeg, ctx, fallback)
 			if tinted {
 				st = st.Background(tintColorFor(c, st))
 			}
@@ -226,18 +284,49 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		if hasEvent {
 			var bg color.Color
 			if fillMask[r][col] && tinted {
-				baseStyle := styleFor(fillOwner[r][col], ctx.Styles, fallback)
+				isNeg := (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && c.Max() < 0)
+				baseStyle := styleFor(fillOwner[r][col], isNeg, ctx, fallback)
 				bg = tintColorFor(c, baseStyle)
 			}
 			if s, ok := renderEventGuideline(ve, bg); ok {
 				return s, true
 			}
 		}
+		if isZero && r == ctx.ZeroRow {
+			hasAbove := fillAbove[col]
+			hasBelow := fillBelow[col]
+			if hasAbove && hasBelow {
+				st := ctx.GridStyle
+				if tinted {
+					baseStyle := styleFor(fillAboveOwner[col], false, ctx, fallback)
+					st = st.Background(tintColorFor(c, baseStyle))
+				}
+				return st.Render("┼"), true
+			}
+			if hasAbove {
+				owner := fillAboveOwner[col]
+				st := styleFor(owner, false, ctx, fallback)
+				if tinted {
+					st = st.Background(tintColorFor(c, st))
+				}
+				return st.Render("┴"), true
+			}
+			if hasBelow {
+				owner := fillBelowOwner[col]
+				st := styleFor(owner, true, ctx, fallback)
+				if tinted {
+					st = st.Background(tintColorFor(c, st))
+				}
+				return st.Render("┬"), true
+			}
+			return "", false
+		}
 		if fillMask[r][col] {
 			owner := fillOwner[r][col]
-			st := faintStyleFor(owner, ctx.Styles, fallback)
+			isNeg := (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && c.Max() < 0)
+			st := faintStyleFor(owner, isNeg, ctx, fallback)
 			if tinted {
-				baseStyle := styleFor(owner, ctx.Styles, fallback)
+				baseStyle := styleFor(owner, isNeg, ctx, fallback)
 				bg := tintColorFor(c, baseStyle)
 				if solid {
 					return lipgloss.NewStyle().Background(bg).Render(" "), true

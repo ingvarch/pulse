@@ -36,12 +36,20 @@ type Model struct {
 
 	step   int
 	events []eventRecord
+
+	zeroBaseline  bool
+	negativeStyle lipgloss.Style
+	hasNegStyle   bool
+	inverted      bool
 }
 
 type series struct {
-	data   []float64
-	style  lipgloss.Style
-	styled bool
+	data          []float64
+	style         lipgloss.Style
+	styled        bool
+	negativeStyle lipgloss.Style
+	hasNegStyle   bool
+	inverted      bool
 }
 
 // New creates a chart for a w x h cells plot area.
@@ -83,6 +91,10 @@ func (m *Model) getOrCreate(name string) *series {
 	s, ok := m.series[name]
 	if !ok {
 		s = &series{}
+		if name == "" && m.hasNegStyle {
+			s.negativeStyle = m.negativeStyle
+			s.hasNegStyle = true
+		}
 		m.series[name] = s
 		if name != "" {
 			m.order = append(m.order, name)
@@ -316,3 +328,93 @@ func (m *Model) Last(name string) (float64, bool) {
 	}
 	return s.data[len(s.data)-1], true
 }
+
+// SetZeroBaseline enables or disables explicit zero baseline rendering.
+func (m *Model) SetZeroBaseline(on bool) { m.zeroBaseline = on }
+
+// ZeroBaseline returns whether explicit zero baseline rendering is enabled.
+func (m *Model) ZeroBaseline() bool { return m.zeroBaseline }
+
+// SetNegativeStyle dynamically sets the negative line style for the default series.
+func (m *Model) SetNegativeStyle(s lipgloss.Style) {
+	m.negativeStyle = s
+	m.hasNegStyle = true
+	if ms, ok := m.series[""]; ok {
+		ms.negativeStyle = s
+		ms.hasNegStyle = true
+	}
+}
+
+// NegativeStyle returns the negative line style for the default series, or default line style.
+func (m *Model) NegativeStyle() lipgloss.Style {
+	if s, ok := m.series[""]; ok && s.hasNegStyle {
+		return s.negativeStyle
+	}
+	if m.hasNegStyle {
+		return m.negativeStyle
+	}
+	return m.lineStyle
+}
+
+// SetSeriesNegativeStyle dynamically sets the negative style for a named series.
+func (m *Model) SetSeriesNegativeStyle(name string, s lipgloss.Style) {
+	ms := m.getOrCreate(name)
+	ms.negativeStyle = s
+	ms.hasNegStyle = true
+	if name == "" {
+		m.negativeStyle = s
+		m.hasNegStyle = true
+	}
+}
+
+// SeriesNegativeStyle returns the negative style for a named series.
+func (m *Model) SeriesNegativeStyle(name string) lipgloss.Style {
+	if name == "" {
+		return m.NegativeStyle()
+	}
+	if s, ok := m.series[name]; ok && s.hasNegStyle {
+		return s.negativeStyle
+	}
+	return m.SeriesStyle(name)
+}
+
+func (m *Model) hasSeriesNegativeStyle(name string) bool {
+	if name == "" {
+		if s, ok := m.series[""]; ok && s.hasNegStyle {
+			return true
+		}
+		return m.hasNegStyle
+	}
+	if s, ok := m.series[name]; ok {
+		return s.hasNegStyle
+	}
+	return false
+}
+
+// SetSeriesInverted enables or disables value inversion for a named series.
+func (m *Model) SetSeriesInverted(name string, inverted bool) {
+	ms := m.getOrCreate(name)
+	ms.inverted = inverted
+}
+
+// SeriesInverted returns whether value inversion is enabled for a named series.
+func (m *Model) SeriesInverted(name string) bool {
+	if s, ok := m.series[name]; ok {
+		return s.inverted
+	}
+	if name == "" {
+		return m.inverted
+	}
+	return false
+}
+
+// SetInverted enables or disables value inversion for the default series.
+func (m *Model) SetInverted(inverted bool) {
+	m.inverted = inverted
+}
+
+// Inverted returns whether value inversion is enabled for the default series.
+func (m *Model) Inverted() bool {
+	return m.inverted
+}
+
