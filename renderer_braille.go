@@ -28,7 +28,7 @@ func dotCellOf(w, h, xd, yd int) (row, col int, bit uint8, ok bool) {
 	return h - 1 - rowFromBottom, cx, brailleBits[dy][dx], true
 }
 
-func plotDots(grid [][]uint8, owner [][]int, idx, lineWidth, w, h, xd, yd int) {
+func plotDots(grid [][]uint8, owner [][]int, isNegGrid [][]bool, isNeg bool, idx, lineWidth, w, h, xd, yd int) {
 	pts := [][2]int{{xd, yd}}
 	if lineWidth > 1 {
 		pts = append(pts, [2]int{xd + 1, yd}, [2]int{xd, yd + 1}, [2]int{xd + 1, yd + 1})
@@ -40,6 +40,9 @@ func plotDots(grid [][]uint8, owner [][]int, idx, lineWidth, w, h, xd, yd int) {
 		}
 		grid[row][col] |= bit
 		owner[row][col] = idx
+		if isNeg {
+			isNegGrid[row][col] = true
+		}
 	}
 }
 
@@ -138,16 +141,18 @@ func sampleLineOf(w, h int, smooth bool, xs, ys []int) []dot {
 	return out
 }
 
-func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, idx int, data []float64) []int {
+func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, isNegGrid [][]bool, idx int, data []float64) ([]int, []int) {
 	w, h := c.Width(), c.Height()
 	min, max := c.Min(), c.Max()
-	colTop := make([]int, w*2)
-	for i := range colTop {
-		colTop[i] = -1
+	colMaxY := make([]int, w*2)
+	colMinY := make([]int, w*2)
+	for i := range colMaxY {
+		colMaxY[i] = -1
+		colMinY[i] = math.MaxInt
 	}
 	n := len(data)
 	if n == 0 {
-		return colTop
+		return colMaxY, colMinY
 	}
 	window := w
 	if window < 1 {
@@ -167,16 +172,23 @@ func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, idx int, data []f
 		xd := (window - n + j) * dw / den
 		xs[j], ys[j] = xd, dotYOf(h, min, max, v)
 	}
-	top := func(xd, yd int) {
-		if xd >= 0 && xd < len(colTop) && yd > colTop[xd] {
-			colTop[xd] = yd
+	base := dotYOf(h, min, max, 0)
+	record := func(xd, yd int) {
+		if xd >= 0 && xd < len(colMaxY) {
+			if yd > colMaxY[xd] {
+				colMaxY[xd] = yd
+			}
+			if yd < colMinY[xd] {
+				colMinY[xd] = yd
+			}
 		}
 	}
 	for _, d := range sampleLineOf(w, h, c.Smooth(), xs, ys) {
-		plotDots(grid, owner, idx, c.LineWidth(), w, h, d.x, d.y)
-		top(d.x, d.y)
+		isNeg := d.y < base || (c.Max() < 0)
+		plotDots(grid, owner, isNegGrid, isNeg, idx, c.LineWidth(), w, h, d.x, d.y)
+		record(d.x, d.y)
 	}
-	return colTop
+	return colMaxY, colMinY
 }
 
 // Render implements Renderer for BrailleRenderer.
@@ -184,8 +196,10 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 	w, h := c.Width(), c.Height()
 	grid := makeCells(h, w, uint8(0))
 	owner := makeCells(h, w, -1)
+	ownerIsNeg := makeCells(h, w, false)
 	fillMask := makeCells(h, w, uint8(0))
 	fillOwner := makeCells(h, w, -1)
+	fillIsNeg := makeCells(h, w, false)
 
 	base := dotYOf(h, c.Min(), c.Max(), 0)
 	for idx, name := range ctx.Names {
@@ -195,21 +209,40 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 		} else {
 			data = c.SeriesData(name)
 		}
-		colTop := plotSeriesBraille(c, grid, owner, idx, data)
+		colMaxY, colMinY := plotSeriesBraille(c, grid, owner, ownerIsNeg, idx, data)
 		if !c.Fill() {
 			continue
 		}
-		for xd, top := range colTop {
-			for yd := base; yd < top; yd++ {
-				if xd%2 != 0 || yd%2 != 0 {
-					continue
+		for xd := 0; xd < w*2; xd++ {
+			maxY := colMaxY[xd]
+			minY := colMinY[xd]
+			if maxY >= base {
+				for yd := base; yd < maxY; yd++ {
+					if xd%2 != 0 || yd%2 != 0 {
+						continue
+					}
+					row, col, bit, ok := dotCellOf(w, h, xd, yd)
+					if !ok {
+						continue
+					}
+					fillMask[row][col] |= bit
+					fillOwner[row][col] = idx
+					fillIsNeg[row][col] = false
 				}
-				row, col, bit, ok := dotCellOf(w, h, xd, yd)
-				if !ok {
-					continue
+			}
+			if minY < base {
+				for yd := minY; yd <= base; yd++ {
+					if xd%2 != 0 || yd%2 != 0 {
+						continue
+					}
+					row, col, bit, ok := dotCellOf(w, h, xd, yd)
+					if !ok {
+						continue
+					}
+					fillMask[row][col] |= bit
+					fillOwner[row][col] = idx
+					fillIsNeg[row][col] = true
 				}
-				fillMask[row][col] |= bit
-				fillOwner[row][col] = idx
 			}
 		}
 	}
@@ -228,16 +261,19 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 		dots := lineDots | fillDots
 		if dots != 0 {
 			if lineDots != 0 {
-				st := styleFor(owner[r][col], ctx.Styles, fallback)
+				ownerIdx := owner[r][col]
+				isNeg := ownerIsNeg[r][col]
+				st := styleFor(ownerIdx, isNeg, ctx, fallback)
 				if tinted {
 					st = st.Background(tintColorFor(c, st))
 				}
 				return st.Render(string(rune(0x2800 + int(dots)))), true
 			}
 			ownerIdx := fillOwner[r][col]
-			st := faintStyleFor(ownerIdx, ctx.Styles, fallback)
+			isNeg := fillIsNeg[r][col]
+			st := faintStyleFor(ownerIdx, isNeg, ctx, fallback)
 			if tinted {
-				baseStyle := styleFor(ownerIdx, ctx.Styles, fallback)
+				baseStyle := styleFor(ownerIdx, isNeg, ctx, fallback)
 				st = st.Background(tintColorFor(c, baseStyle))
 			}
 			return st.Render(string(rune(0x2800 + int(dots)))), true

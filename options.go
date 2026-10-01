@@ -96,3 +96,29 @@ func WithLabelWidth(w int) Option {
 func WithRenderer(r Renderer) Option {
 	return func(m *Model) { m.SetRenderer(r) }
 }
+
+// WithZeroBaseline enables or disables explicit zero baseline rendering (├ on Y-axis and baseline ruling at Y=0).
+func WithZeroBaseline(on bool) Option {
+	return func(m *Model) { m.SetZeroBaseline(on) }
+}
+
+// WithNegativeStyle sets the style for negative values (< 0) of the default series.
+func WithNegativeStyle(s lipgloss.Style) Option {
+	return func(m *Model) { m.SetNegativeStyle(s) }
+}
+
+// WithSeriesNegativeStyle sets the style for negative values (< 0) of a named series.
+func WithSeriesNegativeStyle(name string, s lipgloss.Style) Option {
+	return func(m *Model) { m.SetSeriesNegativeStyle(name, s) }
+}
+
+// WithSeriesInverted configures a named series to invert its values when plotted (v -> -v).
+func WithSeriesInverted(name string, inverted bool) Option {
+	return func(m *Model) { m.SetSeriesInverted(name, inverted) }
+}
+
+// WithInverted configures the default series to invert its values when plotted (v -> -v).
+func WithInverted(inverted bool) Option {
+	return func(m *Model) { m.SetInverted(inverted) }
+}
+

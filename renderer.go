@@ -43,19 +43,26 @@ type Chart interface {
 	SeriesNames() []string
 	SeriesData(name string) []float64
 	VisibleEvents() []VisibleEvent
+	ZeroBaseline() bool
+	NegativeStyle() lipgloss.Style
+	SeriesNegativeStyle(name string) lipgloss.Style
+	SeriesInverted(name string) bool
 }
 
 // RenderContext contains prepared axis, tick, label, and style metadata passed to a Renderer.
 type RenderContext struct {
-	LabelWidth int
-	LabelStyle lipgloss.Style
-	RowLabel   map[int]string
-	HGrid      []bool
-	VGrid      []bool
-	Names      []string
-	Styles     []lipgloss.Style
-	SeriesData [][]float64
-	GridStyle  lipgloss.Style
+	LabelWidth     int
+	LabelStyle     lipgloss.Style
+	RowLabel       map[int]string
+	HGrid          []bool
+	VGrid          []bool
+	Names          []string
+	Styles         []lipgloss.Style
+	NegativeStyles []lipgloss.Style
+	HasNegStyles   []bool
+	SeriesData     [][]float64
+	GridStyle      lipgloss.Style
+	ZeroRow        int
 }
 
 // Renderer defines how chart series data and axes are rendered into a string.
@@ -90,16 +97,30 @@ func tickRowOf(h int, min, max, v float64) int {
 
 func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)) string {
 	w, h := c.Width(), c.Height()
-	axis := c.AxisStyle().Render("│")
+	axisNormal := c.AxisStyle().Render("│")
+	axisZero := c.AxisStyle().Render("├")
+	isZeroRow := c.ZeroBaseline() && ctx.ZeroRow >= 0
 	var sb strings.Builder
 	for r := 0; r < h; r++ {
 		sb.WriteString(ctx.LabelStyle.Render(ctx.RowLabel[r]))
-		sb.WriteString(axis)
+		if isZeroRow && r == ctx.ZeroRow {
+			sb.WriteString(axisZero)
+		} else {
+			sb.WriteString(axisNormal)
+		}
 		for col := 0; col < w; col++ {
 			if s, ok := cellAt(r, col); ok {
 				sb.WriteString(s)
 				if sw := lipgloss.Width(s); sw > 1 {
 					col += sw - 1
+				}
+				continue
+			}
+			if isZeroRow && r == ctx.ZeroRow {
+				if ctx.VGrid[col] {
+					sb.WriteString(c.AxisStyle().Render("┼"))
+				} else {
+					sb.WriteString(c.AxisStyle().Render("─"))
 				}
 				continue
 			}
@@ -116,15 +137,18 @@ func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)
 	return sb.String()
 }
 
-func styleFor(owner int, styles []lipgloss.Style, fallback lipgloss.Style) lipgloss.Style {
-	if owner >= 0 && owner < len(styles) {
-		return styles[owner]
+func styleFor(owner int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
+	if owner >= 0 && owner < len(ctx.Styles) {
+		if isNeg && owner < len(ctx.HasNegStyles) && ctx.HasNegStyles[owner] {
+			return ctx.NegativeStyles[owner]
+		}
+		return ctx.Styles[owner]
 	}
 	return fallback
 }
 
-func faintStyleFor(owner int, styles []lipgloss.Style, fallback lipgloss.Style) lipgloss.Style {
-	return styleFor(owner, styles, fallback).Faint(true)
+func faintStyleFor(owner int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
+	return styleFor(owner, isNeg, ctx, fallback).Faint(true)
 }
 
 func gridCell(h, v bool) string {
