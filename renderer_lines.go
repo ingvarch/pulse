@@ -1,6 +1,8 @@
 package pulse
 
 import (
+	"image/color"
+
 	"charm.land/lipgloss/v2"
 )
 
@@ -197,11 +199,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, idx, c.SeriesData(name))
 	}
 
-	visibleEvents := c.VisibleEvents()
-	eventMap := make(map[int]VisibleEvent, len(visibleEvents))
-	for _, ve := range visibleEvents {
-		eventMap[ve.Col] = ve
-	}
+	eventMap := eventsByColumn(c.VisibleEvents())
 
 	fallback, glyphWidth, glyphSmooth := c.LineStyle(), c.LineWidth(), c.Smooth()
 	tinted := c.TintedFill()
@@ -209,15 +207,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
 		ve, hasEvent := eventMap[col]
 		if hasEvent && r == 0 {
-			glyph := ve.Event.Glyph
-			if glyph == "" {
-				glyph = "▼"
-			}
-			st := ve.Event.Style
-			if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
-				st = st.Foreground(lipgloss.Color("#7dcfff")).Bold(true)
-			}
-			return st.Render(glyph), true
+			return renderEventPin(ve), true
 		}
 		if lineMask[r][col] != 0 {
 			st := styleFor(lineOwner[r][col], ctx.Styles, fallback)
@@ -227,17 +217,15 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			ru := runeForMask(glyphWidth, glyphSmooth, lineMask[r][col])
 			return st.Render(string(ru)), true
 		}
-		if hasEvent && !ve.Event.NoLine {
-			guideStyle := ve.Event.Style
-			if guideStyle.GetForeground() == nil || guideStyle.GetForeground() == (lipgloss.NoColor{}) {
-				guideStyle = guideStyle.Foreground(lipgloss.Color("#7dcfff")).Faint(true)
-			}
+		if hasEvent {
+			var bg color.Color
 			if fillMask[r][col] && tinted {
 				baseStyle := styleFor(fillOwner[r][col], ctx.Styles, fallback)
-				bg := tintColorFor(c, baseStyle)
-				return guideStyle.Background(bg).Render("┆"), true
+				bg = tintColorFor(c, baseStyle)
 			}
-			return guideStyle.Render("┆"), true
+			if s, ok := renderEventGuideline(ve, bg); ok {
+				return s, true
+			}
 		}
 		if fillMask[r][col] {
 			owner := fillOwner[r][col]

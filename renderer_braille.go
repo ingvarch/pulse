@@ -2,8 +2,6 @@ package pulse
 
 import (
 	"math"
-
-	"charm.land/lipgloss/v2"
 )
 
 // BrailleRenderer renders 2x4 dot Braille patterns.
@@ -210,26 +208,14 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 		}
 	}
 
-	visibleEvents := c.VisibleEvents()
-	eventMap := make(map[int]VisibleEvent, len(visibleEvents))
-	for _, ve := range visibleEvents {
-		eventMap[ve.Col] = ve
-	}
+	eventMap := eventsByColumn(c.VisibleEvents())
 
 	fallback := c.LineStyle()
 	tinted := c.TintedFill()
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
 		ve, hasEvent := eventMap[col]
 		if hasEvent && r == 0 {
-			glyph := ve.Event.Glyph
-			if glyph == "" {
-				glyph = "▼"
-			}
-			st := ve.Event.Style
-			if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
-				st = st.Foreground(lipgloss.Color("#7dcfff")).Bold(true)
-			}
-			return st.Render(glyph), true
+			return renderEventPin(ve), true
 		}
 		lineDots := grid[r][col]
 		fillDots := fillMask[r][col]
@@ -250,12 +236,10 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 			}
 			return st.Render(string(rune(0x2800 + int(dots)))), true
 		}
-		if hasEvent && !ve.Event.NoLine {
-			guideStyle := ve.Event.Style
-			if guideStyle.GetForeground() == nil || guideStyle.GetForeground() == (lipgloss.NoColor{}) {
-				guideStyle = guideStyle.Foreground(lipgloss.Color("#7dcfff")).Faint(true)
+		if hasEvent {
+			if s, ok := renderEventGuideline(ve, nil); ok {
+				return s, true
 			}
-			return guideStyle.Render("┆"), true
 		}
 		return "", false
 	})
