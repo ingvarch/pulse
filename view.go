@@ -81,8 +81,12 @@ func (m *Model) View() string {
 	names = append(names, "")
 	names = append(names, m.order...)
 	styles := make([]lipgloss.Style, len(names))
+	seriesData := make([][]float64, len(names))
 	for idx, name := range names {
 		styles[idx] = m.SeriesStyle(name)
+		if s, ok := m.series[name]; ok {
+			seriesData[idx] = s.data
+		}
 	}
 
 	gridStyle := m.axisStyle.Faint(true)
@@ -94,6 +98,7 @@ func (m *Model) View() string {
 		VGrid:      vGrid,
 		Names:      names,
 		Styles:     styles,
+		SeriesData: seriesData,
 		GridStyle:  gridStyle,
 	}
 

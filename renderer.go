@@ -54,6 +54,7 @@ type RenderContext struct {
 	VGrid      []bool
 	Names      []string
 	Styles     []lipgloss.Style
+	SeriesData [][]float64
 	GridStyle  lipgloss.Style
 }
 
@@ -138,12 +139,13 @@ func gridCell(h, v bool) string {
 }
 
 func makeCells[T any](h, w int, fill T) [][]T {
+	buf := make([]T, h*w)
+	for i := range buf {
+		buf[i] = fill
+	}
 	cells := make([][]T, h)
 	for i := range cells {
-		cells[i] = make([]T, w)
-		for j := range cells[i] {
-			cells[i][j] = fill
-		}
+		cells[i] = buf[i*w : (i+1)*w]
 	}
 	return cells
 }

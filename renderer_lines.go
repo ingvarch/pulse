@@ -196,7 +196,13 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 	fillOwner := makeCells(h, w, -1)
 
 	for idx, name := range ctx.Names {
-		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, idx, c.SeriesData(name))
+		var data []float64
+		if idx < len(ctx.SeriesData) && ctx.SeriesData[idx] != nil {
+			data = ctx.SeriesData[idx]
+		} else {
+			data = c.SeriesData(name)
+		}
+		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, idx, data)
 	}
 
 	eventMap := eventsByColumn(c.VisibleEvents())
