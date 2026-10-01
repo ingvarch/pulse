@@ -273,7 +273,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			return renderEventPin(ve), true
 		}
 		if lineMask[r][col] != 0 {
-			isNeg := (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && c.Max() < 0)
+			isNeg := ctx.isNegativeRow(r, c.Max())
 			st := styleFor(lineOwner[r][col], isNeg, ctx, fallback)
 			if tinted {
 				st = st.Background(tintColorFor(c, st))
@@ -284,7 +284,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		if hasEvent {
 			var bg color.Color
 			if fillMask[r][col] && tinted {
-				isNeg := (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && c.Max() < 0)
+				isNeg := ctx.isNegativeRow(r, c.Max())
 				baseStyle := styleFor(fillOwner[r][col], isNeg, ctx, fallback)
 				bg = tintColorFor(c, baseStyle)
 			}
@@ -323,7 +323,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		}
 		if fillMask[r][col] {
 			owner := fillOwner[r][col]
-			isNeg := (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && c.Max() < 0)
+			isNeg := ctx.isNegativeRow(r, c.Max())
 			st := faintStyleFor(owner, isNeg, ctx, fallback)
 			if tinted {
 				baseStyle := styleFor(owner, isNeg, ctx, fallback)

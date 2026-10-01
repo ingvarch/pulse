@@ -36,3 +36,71 @@ func TestFormatTick_RoundsLongFloat(t *testing.T) {
 		t.Fatalf("FormatTick(88.666..) = %q, want %q", got, "88.67")
 	}
 }
+
+func TestFormatBytes(t *testing.T) {
+	tests := []struct {
+		input float64
+		want  string
+	}{
+		{0, "0 B"},
+		{512, "512 B"},
+		{1024, "1 KB"},
+		{1536, "1.5 KB"},
+		{1048576, "1 MB"},
+		{1572864, "1.5 MB"},
+		{1073741824, "1 GB"},
+		{-1048576, "-1 MB"},
+		{-1536, "-1.5 KB"},
+	}
+	for _, tc := range tests {
+		if got := scale.FormatBytes(tc.input); got != tc.want {
+			t.Errorf("FormatBytes(%v) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestFormatBytesRate(t *testing.T) {
+	tests := []struct {
+		input float64
+		want  string
+	}{
+		{0, "0 B/s"},
+		{1024, "1 KB/s"},
+		{104857600, "100 MB/s"},
+		{-104857600, "-100 MB/s"},
+	}
+	for _, tc := range tests {
+		if got := scale.FormatBytesRate(tc.input); got != tc.want {
+			t.Errorf("FormatBytesRate(%v) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestFormatBytesRateAbs(t *testing.T) {
+	tests := []struct {
+		input float64
+		want  string
+	}{
+		{0, "0 B/s"},
+		{52428800, "50 MB/s"},
+		{-52428800, "50 MB/s"},
+	}
+	for _, tc := range tests {
+		if got := scale.FormatBytesRateAbs(tc.input); got != tc.want {
+			t.Errorf("FormatBytesRateAbs(%v) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestBytesRateFormatter(t *testing.T) {
+	fmtAbs := scale.BytesRateFormatter(true)
+	if got := fmtAbs(-1048576); got != "1 MB/s" {
+		t.Errorf("BytesRateFormatter(true)(-1MB) = %q, want %q", got, "1 MB/s")
+	}
+
+	fmtSigned := scale.BytesRateFormatter(false)
+	if got := fmtSigned(-1048576); got != "-1 MB/s" {
+		t.Errorf("BytesRateFormatter(false)(-1MB) = %q, want %q", got, "-1 MB/s")
+	}
+}
+

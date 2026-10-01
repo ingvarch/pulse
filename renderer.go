@@ -44,6 +44,7 @@ type Chart interface {
 	SeriesData(name string) []float64
 	VisibleEvents() []VisibleEvent
 	ZeroBaseline() bool
+	Symmetric() bool
 	NegativeStyle() lipgloss.Style
 	SeriesNegativeStyle(name string) lipgloss.Style
 	SeriesInverted(name string) bool
@@ -63,6 +64,11 @@ type RenderContext struct {
 	SeriesData     [][]float64
 	GridStyle      lipgloss.Style
 	ZeroRow        int
+}
+
+// isNegativeRow reports whether terminal row r represents negative values.
+func (ctx RenderContext) isNegativeRow(r int, maxVal float64) bool {
+	return (ctx.ZeroRow >= 0 && r > ctx.ZeroRow) || (ctx.ZeroRow < 0 && maxVal < 0)
 }
 
 // Renderer defines how chart series data and axes are rendered into a string.

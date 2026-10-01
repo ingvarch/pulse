@@ -2,6 +2,7 @@ package pulse
 
 import (
 	"image/color"
+	"math"
 	"slices"
 
 	"charm.land/lipgloss/v2"
@@ -38,6 +39,7 @@ type Model struct {
 	events []eventRecord
 
 	zeroBaseline  bool
+	symmetric     bool
 	negativeStyle lipgloss.Style
 	hasNegStyle   bool
 	inverted      bool
@@ -77,6 +79,9 @@ func New(w, h int, opts ...Option) *Model {
 	}
 	for _, o := range opts {
 		o(m)
+	}
+	if m.symmetric {
+		m.SetRange(m.min, m.max)
 	}
 	if m.min > m.max {
 		m.min, m.max = m.max, m.min
@@ -139,6 +144,13 @@ func (m *Model) SetRange(min, max float64) {
 	}
 	if min == max {
 		max = min + 1
+	}
+	if m.symmetric {
+		limit := math.Max(math.Abs(min), math.Abs(max))
+		if limit == 0 {
+			limit = 1
+		}
+		min, max = -limit, limit
 	}
 	m.min, m.max = min, max
 }
@@ -334,6 +346,18 @@ func (m *Model) SetZeroBaseline(on bool) { m.zeroBaseline = on }
 
 // ZeroBaseline returns whether explicit zero baseline rendering is enabled.
 func (m *Model) ZeroBaseline() bool { return m.zeroBaseline }
+
+// SetSymmetric enables or disables symmetric Y range normalization around zero ([-max, +max]).
+func (m *Model) SetSymmetric(on bool) {
+	m.symmetric = on
+	if on {
+		m.SetRange(m.min, m.max)
+	}
+}
+
+// Symmetric returns whether symmetric Y range normalization is enabled.
+func (m *Model) Symmetric() bool { return m.symmetric }
+
 
 // SetNegativeStyle dynamically sets the negative line style for the default series.
 func (m *Model) SetNegativeStyle(s lipgloss.Style) {

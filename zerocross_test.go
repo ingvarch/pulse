@@ -332,3 +332,51 @@ func TestSeriesInverted_RXTX_RoundedCorners(t *testing.T) {
 	}
 }
 
+func TestSymmetricRange(t *testing.T) {
+	// 1. Initial configuration with WithSymmetric(true)
+	m := pulse.New(20, 9,
+		pulse.WithRange(0, 100),
+		pulse.WithSymmetric(true),
+		pulse.WithZeroBaseline(true),
+	)
+
+	if !m.Symmetric() {
+		t.Fatal("expected Symmetric() to be true")
+	}
+	if m.Min() != -100 || m.Max() != 100 {
+		t.Fatalf("expected WithSymmetric to expand [0, 100] to [-100, 100], got [%v, %v]", m.Min(), m.Max())
+	}
+
+	// 2. SetRange with asymmetric positive-dominant range: [-20, 80] -> [-80, 80]
+	m.SetRange(-20, 80)
+	if m.Min() != -80 || m.Max() != 80 {
+		t.Fatalf("expected SetRange(-20, 80) with symmetric to become [-80, 80], got [%v, %v]", m.Min(), m.Max())
+	}
+
+	// 3. SetRange with asymmetric negative-dominant range: [-90, 15] -> [-90, 90]
+	m.SetRange(-90, 15)
+	if m.Min() != -90 || m.Max() != 90 {
+		t.Fatalf("expected SetRange(-90, 15) with symmetric to become [-90, 90], got [%v, %v]", m.Min(), m.Max())
+	}
+
+	// 4. Zero row must be centered on height 9: (9-1)/2 = row 4
+	lines := strings.Split(strings.TrimRight(m.View(), "\n"), "\n")
+	if len(lines) != 9 {
+		t.Fatalf("expected 9 lines, got %d", len(lines))
+	}
+	if !strings.Contains(lines[4], "├") {
+		t.Fatalf("expected line 4 (middle row) to be the zero baseline, got:\n%s", lines[4])
+	}
+
+	// 5. Disable symmetric
+	m.SetSymmetric(false)
+	if m.Symmetric() {
+		t.Fatal("expected Symmetric() to be false after SetSymmetric(false)")
+	}
+	m.SetRange(-20, 80)
+	if m.Min() != -20 || m.Max() != 80 {
+		t.Fatalf("expected SetRange(-20, 80) to be [-20, 80] when symmetric is false, got [%v, %v]", m.Min(), m.Max())
+	}
+}
+
+
