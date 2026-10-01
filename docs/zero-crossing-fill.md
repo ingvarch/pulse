@@ -62,6 +62,7 @@ When `pulse.WithZeroBaseline(true)` is enabled:
 | Option | Description |
 | :--- | :--- |
 | `pulse.WithZeroBaseline(on bool)` | Enables or disables explicit zero baseline rendering (`├` on Y-axis and baseline ruling at $Y=0$). |
+| `pulse.WithSymmetric(on bool)` | Normalizes the Y range to be symmetric around zero ($[-\text{limit}, +\text{limit}]$), centering the zero baseline vertically. |
 | `pulse.WithNegativeStyle(s lipgloss.Style)` | Sets the style for negative values ($< 0$) of the default series. |
 | `pulse.WithSeriesNegativeStyle(name string, s lipgloss.Style)` | Sets the style for negative values ($< 0$) of a named series. |
 | `pulse.WithSeriesInverted(name string, inverted bool)` | Automatically inverts values when plotted ($v \to -v$). Raw positive values are preserved in `Last()` and data storage. |
@@ -73,12 +74,60 @@ When `pulse.WithZeroBaseline(true)` is enabled:
 | :--- | :--- |
 | `chart.SetZeroBaseline(on bool)` | Dynamically toggles zero baseline rendering. |
 | `chart.ZeroBaseline() bool` | Returns whether zero baseline rendering is enabled. |
+| `chart.SetSymmetric(on bool)` | Dynamically toggles symmetric range normalization around zero. |
+| `chart.Symmetric() bool` | Returns whether symmetric range normalization is enabled. |
 | `chart.SetNegativeStyle(s lipgloss.Style)` | Dynamically sets negative line and fill style for default series. |
 | `chart.NegativeStyle() lipgloss.Style` | Returns negative style for default series. |
 | `chart.SetSeriesNegativeStyle(name string, s lipgloss.Style)` | Dynamically sets negative style for a named series. |
 | `chart.SeriesNegativeStyle(name string) lipgloss.Style` | Returns negative style for a named series. |
 | `chart.SetSeriesInverted(name string, inverted bool)` | Dynamically toggles value inversion for a named series. |
 | `chart.SeriesInverted(name string) bool` | Returns whether value inversion is active for a named series. |
+
+---
+
+## ⚖️ Auto-Symmetric Range & Centered Zero Baseline
+
+In mirror charts like RX/TX network traffic, Read/Write disk IO, or Long/Short positions, you typically want the zero baseline to be anchored **directly in the center** of the plot area, with equal vertical headroom for both directions.
+
+Enabling `pulse.WithSymmetric(true)` (or dynamically via `chart.SetSymmetric(true)`) automatically normalizes the Y range bounds to:
+$$[-\text{limit}, +\text{limit}] \quad \text{where} \quad \text{limit} = \max(|min|, |max|)$$
+
+```text
+Asymmetric Input: WithRange(-20, 80) -> Normalized to: [-80, 80]
+  +80│        ╭───╮
+  +40│        │░░░│                      <- +80 max
+    0├────────┴───┴───────┬───┬────────  <- Exactly at center row (h=9 -> row 4)
+  -40│                    │░░░│          <- -80 min
+  -80│                    ╰───╯
+```
+
+Whenever you push data or adjust limits with `chart.SetRange(min, max)`, Pulse ensures the bounds remain balanced around zero without manual recalculations.
+
+---
+
+## 📊 Adaptive Byte & Throughput Rate Formatting (`scale`)
+
+Pulse includes high-performance formatters for byte counts and transfer rates in the `github.com/ingvarch/pulse/scale` package:
+
+| Function | Output Example | Typical Use Case |
+| :--- | :--- | :--- |
+| `scale.FormatBytes(v float64)` | `"512 B"`, `"1.5 KB"`, `"10 MB"`, `"2 GB"` | Memory, Disk storage |
+| `scale.FormatBytesRate(v float64)` | `"1 KB/s"`, `"50 MB/s"`, `"-50 MB/s"` | Signed network & IO throughput |
+| `scale.FormatBytesRateAbs(v float64)` | `"1 KB/s"`, `"50 MB/s"`, `"50 MB/s"` | Mirrored Y-axis labels without negative sign |
+| `scale.BytesRateFormatter(abs bool)` | Returns `func(float64) string` | Direct drop-in for `pulse.WithLabelFormatter(...)` |
+
+### Mirrored Y-Axis Labels
+When plotting inverted TX traffic below the baseline, negative values like `-50 MB/s` are conceptually positive egress bandwidth. By passing `scale.BytesRateFormatter(true)`, both upper (RX) and lower (TX) ticks render as positive rates:
+
+```go
+pulse.WithLabelFormatter(scale.BytesRateFormatter(true))
+// Renders:
+//  +100 MB/s │
+//   +50 MB/s │
+//     0 B/s  ├
+//   +50 MB/s │
+//  +100 MB/s │
+```
 
 ---
 
@@ -104,7 +153,7 @@ Pulse supports smooth continuous box-drawing curves across both positive and neg
 
 ### 1. Network RX / TX Traffic (Grafana Pattern)
 
-In this pattern, both RX and TX data are received as positive bandwidth numbers (e.g. `52.4 MB/s`). By configuring `WithSeriesInverted("tx", true)`, TX is automatically mirrored below the baseline while retaining its positive magnitude for stats and headers:
+In this pattern, both RX and TX data are received as raw bytes per second (e.g. `50 * 1024 * 1024`). By configuring `WithSeriesInverted("tx", true)` and `WithSymmetric(true)`, TX is automatically mirrored below the baseline while retaining its positive magnitude for stats and headers:
 
 ```go
 package main
@@ -115,23 +164,22 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/ingvarch/pulse"
+	"github.com/ingvarch/pulse/scale"
 	"github.com/ingvarch/pulse/theme"
 )
+
+const MB = 1024 * 1024
 
 func main() {
 	preset := theme.TokyoNight()
 
 	chart := pulse.New(60, 13,
 		pulse.WithLineWidth(1), // Thin rounded curves: ╭ ╮ ╯ ╰
-		pulse.WithRange(-100, 100),
+		pulse.WithRange(0, 100*MB),
+		pulse.WithSymmetric(true), // Automatically centers zero: [-100 MB, +100 MB]
 		pulse.WithZeroBaseline(true),
-		pulse.WithTicks(-100, -50, 0, 50, 100),
-		pulse.WithLabelFormatter(func(v float64) string {
-			if v == 0 {
-				return "0 MB/s"
-			}
-			return fmt.Sprintf("%.0f MB/s", math.Abs(v))
-		}),
+		pulse.WithTicks(-100*MB, -50*MB, 0, 50*MB, 100*MB),
+		pulse.WithLabelFormatter(scale.BytesRateFormatter(true)), // Mirrored absolute labels: 50 MB/s
 		pulse.WithSeriesStyle("rx", lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))), // Green (RX)
 		pulse.WithSeriesStyle("tx", lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))), // Purple (TX)
 		pulse.WithSeriesInverted("tx", true),                                                   // Auto-mirror TX below zero
@@ -140,10 +188,10 @@ func main() {
 		pulse.WithTintedFill(true),
 	)
 
-	// Stream sample traffic points
+	// Stream sample traffic points in bytes/second
 	for i := 0; i < 60; i++ {
-		rx := 45 + 35*math.Sin(float64(i)*0.15)
-		tx := 30 + 25*math.Cos(float64(i)*0.12)
+		rx := (45.0 + 35.0*math.Sin(float64(i)*0.15)) * MB
+		tx := (30.0 + 25.0*math.Cos(float64(i)*0.12)) * MB
 		chart.PushSeries("rx", rx)
 		chart.PushSeries("tx", tx)
 	}
@@ -151,7 +199,7 @@ func main() {
 	rxVal, _ := chart.Last("rx")
 	txVal, _ := chart.Last("tx")
 
-	fmt.Printf("Current: ▲ RX %.1f MB/s  |  ▼ TX %.1f MB/s\n\n", rxVal, txVal)
+	fmt.Printf("Current: ▲ RX %s  |  ▼ TX %s\n\n", scale.FormatBytesRate(rxVal), scale.FormatBytesRate(txVal))
 	fmt.Println(chart.View())
 	fmt.Println(chart.LegendBox())
 }
@@ -237,4 +285,5 @@ go run ./examples/rxtxdemo
 * `f` — Toggle area fill on/off.
 * `t` — Toggle tinted fill background.
 * `z` — Toggle zero baseline ruling on/off.
+* `y` — Toggle symmetric zero-centered range on/off.
 * `q` — Quit.

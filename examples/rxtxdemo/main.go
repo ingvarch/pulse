@@ -11,8 +11,11 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ingvarch/pulse"
+	"github.com/ingvarch/pulse/scale"
 	"github.com/ingvarch/pulse/theme"
 )
+
+const MB = 1024.0 * 1024.0
 
 type tickMsg time.Time
 
@@ -31,7 +34,7 @@ func rxSignal(step int) float64 {
 	if step%23 < 5 {
 		base += 25 + 15*rand.Float64()
 	}
-	return math.Max(5, math.Min(95, base))
+	return math.Max(5, math.Min(95, base)) * MB
 }
 
 func txSignal(step int) float64 {
@@ -39,7 +42,7 @@ func txSignal(step int) float64 {
 	if (step+10)%27 < 4 {
 		base += 30 + 10*rand.Float64()
 	}
-	return math.Max(5, math.Min(95, base))
+	return math.Max(5, math.Min(95, base)) * MB
 }
 
 func (m model) Init() tea.Cmd { return tick }
@@ -63,6 +66,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if s == "s" {
 			m.chart.SetSmooth(!m.chart.Smooth())
+		}
+		if s == "y" {
+			m.chart.SetSymmetric(!m.chart.Symmetric())
 		}
 		if s == "f" {
 			m.chart.SetFill(!m.chart.Fill())
@@ -114,18 +120,23 @@ func (m model) View() tea.View {
 		}
 	}
 
+	symStr := "asym"
+	if m.chart.Symmetric() {
+		symStr = "sym"
+	}
+
 	header := lipgloss.JoinHorizontal(
 		lipgloss.Center,
 		titleStyle.Render("⚡ Network Interface (eth0) Traffic"),
-		dimStyle.Render(fmt.Sprintf("  [%s (w/s) | %s (m) | fill: %s (f/t) | zero: %v (z) | q: quit]",
-			cornerStr, modeStr, fillStr, m.chart.ZeroBaseline())),
+		dimStyle.Render(fmt.Sprintf("  [%s (w/s) | %s (m) | %s (y) | fill: %s (f/t) | zero: %v (z) | q: quit]",
+			cornerStr, modeStr, symStr, fillStr, m.chart.ZeroBaseline())),
 	)
 
 	stats := lipgloss.JoinHorizontal(
 		lipgloss.Center,
-		rxStyle.Render(fmt.Sprintf(" ▲ RX: %5.1f MB/s", rx)),
+		rxStyle.Render(fmt.Sprintf(" ▲ RX: %s", scale.FormatBytesRate(rx))),
 		"    ",
-		txStyle.Render(fmt.Sprintf(" ▼ TX: %5.1f MB/s", tx)),
+		txStyle.Render(fmt.Sprintf(" ▼ TX: %s", scale.FormatBytesRate(tx))),
 		"    ",
 		m.chart.LegendBox(),
 	)
@@ -147,15 +158,11 @@ func main() {
 
 	chart := pulse.New(65, 15,
 		pulse.WithLineWidth(1),
-		pulse.WithRange(-100, 100),
+		pulse.WithRange(-100*MB, 100*MB),
+		pulse.WithSymmetric(true),
 		pulse.WithZeroBaseline(true),
-		pulse.WithTicks(-100, -50, 0, 50, 100),
-		pulse.WithLabelFormatter(func(v float64) string {
-			if v == 0 {
-				return "0 MB/s"
-			}
-			return fmt.Sprintf("%.0f MB/s", math.Abs(v))
-		}),
+		pulse.WithTicks(-100*MB, -50*MB, 0, 50*MB, 100*MB),
+		pulse.WithLabelFormatter(scale.FormatBytesRateAbs),
 		pulse.WithSeriesStyle("rx", lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))),
 		pulse.WithSeriesStyle("tx", lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))),
 		pulse.WithSeriesInverted("tx", true),
@@ -176,3 +183,4 @@ func main() {
 		os.Exit(1)
 	}
 }
+

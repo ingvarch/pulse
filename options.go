@@ -102,6 +102,13 @@ func WithZeroBaseline(on bool) Option {
 	return func(m *Model) { m.SetZeroBaseline(on) }
 }
 
+// WithSymmetric normalizes the Y range to be symmetric around zero ([-max, +max]),
+// ensuring the zero baseline remains anchored directly in the center of the chart.
+func WithSymmetric(on bool) Option {
+	return func(m *Model) { m.SetSymmetric(on) }
+}
+
+
 // WithNegativeStyle sets the style for negative values (< 0) of the default series.
 func WithNegativeStyle(s lipgloss.Style) Option {
 	return func(m *Model) { m.SetNegativeStyle(s) }

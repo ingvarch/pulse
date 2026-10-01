@@ -1,6 +1,7 @@
 package scale
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 )
@@ -51,4 +52,66 @@ func NiceTicks(min, max float64, maxTicks int) []float64 {
 // FormatTick formats a tick value concisely: up to 4 significant digits without trailing zeros.
 func FormatTick(v float64) string {
 	return strconv.FormatFloat(v, 'g', 4, 64)
+}
+
+func formatBytesWithSuffix(v float64, suffix string, abs bool) string {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return "0 B" + suffix
+	}
+	neg := v < 0
+	if abs {
+		neg = false
+	}
+	val := math.Abs(v)
+	if val == 0 {
+		return "0 B" + suffix
+	}
+
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	unitIdx := 0
+	for val >= 1024 && unitIdx < len(units)-1 {
+		val /= 1024
+		unitIdx++
+	}
+
+	var formatted string
+	if unitIdx == 0 {
+		formatted = fmt.Sprintf("%.0f %s%s", val, units[unitIdx], suffix)
+	} else {
+		rounded := math.Round(val*10) / 10
+		if rounded == math.Floor(rounded) {
+			formatted = fmt.Sprintf("%.0f %s%s", rounded, units[unitIdx], suffix)
+		} else {
+			formatted = fmt.Sprintf("%.1f %s%s", rounded, units[unitIdx], suffix)
+		}
+	}
+
+	if neg {
+		return "-" + formatted
+	}
+	return formatted
+}
+
+// FormatBytes formats a byte count into a human-readable string (e.g. "1 KB", "1.5 MB").
+func FormatBytes(v float64) string {
+	return formatBytesWithSuffix(v, "", false)
+}
+
+// FormatBytesRate formats a throughput value in bytes per second (e.g. "1 KB/s", "100 MB/s").
+func FormatBytesRate(v float64) string {
+	return formatBytesWithSuffix(v, "/s", false)
+}
+
+// FormatBytesRateAbs formats a throughput value in bytes per second using its absolute value (e.g. "50 MB/s").
+// Ideal for mirror/symmetric Y-axes (RX/TX, Read/Write).
+func FormatBytesRateAbs(v float64) string {
+	return formatBytesWithSuffix(v, "/s", true)
+}
+
+// BytesRateFormatter returns a Y-axis label formatter function for bytes per second.
+// If abs is true, negative values are formatted without a minus sign (ideal for TX / Write).
+func BytesRateFormatter(abs bool) func(float64) string {
+	return func(v float64) string {
+		return formatBytesWithSuffix(v, "/s", abs)
+	}
 }
