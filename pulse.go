@@ -70,6 +70,9 @@ func New(w, h int, opts ...Option) *Model {
 	for _, o := range opts {
 		o(m)
 	}
+	if m.min > m.max {
+		m.min, m.max = m.max, m.min
+	}
 	if m.max == m.min {
 		m.max = m.min + 1
 	}
@@ -119,6 +122,9 @@ func (m *Model) LenSeries(name string) int {
 
 // SetRange dynamically sets the Y-axis range.
 func (m *Model) SetRange(min, max float64) {
+	if min > max {
+		min, max = max, min
+	}
 	if min == max {
 		max = min + 1
 	}

@@ -659,3 +659,14 @@ func TestLineChart_WithEventOption(t *testing.T) {
 		t.Fatalf("expected col 14 (29 - 15), got %d", events[0].Col)
 	}
 }
+
+func TestLineChart_InvertedRangeNormalization(t *testing.T) {
+	m := pulse.New(20, 8, pulse.WithRange(100, 0))
+	if m.Min() != 0 || m.Max() != 100 {
+		t.Fatalf("expected WithRange(100, 0) to normalize to (0, 100), got (%v, %v)", m.Min(), m.Max())
+	}
+	m.SetRange(80, 20)
+	if m.Min() != 20 || m.Max() != 80 {
+		t.Fatalf("expected SetRange(80, 20) to normalize to (20, 80), got (%v, %v)", m.Min(), m.Max())
+	}
+}

@@ -2,10 +2,14 @@ package pulse
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 )
+
+// DefaultEventColor is the default foreground color for timeline event pins and guidelines (#7dcfff).
+var DefaultEventColor color.Color = lipgloss.Color("#7dcfff")
 
 // Event represents a discrete timeline annotation or event marker.
 type Event struct {
@@ -91,7 +95,7 @@ func (m *Model) EventsBox() string {
 		}
 		st := ve.Event.Style
 		if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
-			st = st.Foreground(lipgloss.Color("#7dcfff")).Bold(true)
+			st = st.Foreground(DefaultEventColor).Bold(true)
 		}
 		badge := st.Render(glyph)
 		label := ve.Event.Label
