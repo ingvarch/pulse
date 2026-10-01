@@ -135,6 +135,24 @@ chart.SetMode(pulse.ModeBraille)
   <img src="assets/braille.png" alt="Pulse Braille Sub-Pixel Rendering" width="100%" />
 </p>
 
+## ⚖️ Bidirectional & RX/TX Traffic
+
+Monitor inverted network streams, disk I/O, or profit/loss with a central zero baseline ruling (`├`), smooth bidirectional area fill, and auto-symmetric scaling:
+
+```go
+chart := pulse.New(80, 15,
+	pulse.WithRange(0, 100*MB),
+	pulse.WithSymmetric(true),
+	pulse.WithZeroBaseline(true),
+	pulse.WithSeriesInverted("tx", true),
+	pulse.WithLabelFormatter(scale.BytesRateFormatter(true)),
+)
+```
+
+<p align="center">
+  <img src="assets/rxtx.png" alt="Pulse Bidirectional RX/TX Traffic" width="100%" />
+</p>
+
 ## 📚 Documentation
 
 Detailed guides and API references are available in the [docs](docs/) directory:

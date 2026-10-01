@@ -39,6 +39,10 @@ chart := pulse.New(60, 12,
 )
 ```
 
+<p align="center">
+  <img src="../assets/fill.png" alt="Grafana-Style Coordinate Grid" width="100%" />
+</p>
+
 ## Symmetric Y-Axis (`WithSymmetric`)
 
 When plotting bidirectional metrics (such as network RX/TX, disk read/write, or profit/loss), you often need zero to stay directly in the vertical center of the chart with equal positive and negative scaling.
@@ -52,6 +56,10 @@ chart := pulse.New(60, 13,
     pulse.WithZeroBaseline(true),
 )
 ```
+
+<p align="center">
+  <img src="../assets/rxtx.png" alt="Symmetric Y-Axis Centered Baseline" width="100%" />
+</p>
 
 You can also dynamically toggle symmetry at runtime via `chart.SetSymmetric(bool)` or inspect it with `chart.Symmetric() bool`.
 

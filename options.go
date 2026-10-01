@@ -108,7 +108,6 @@ func WithSymmetric(on bool) Option {
 	return func(m *Model) { m.SetSymmetric(on) }
 }
 
-
 // WithNegativeStyle sets the style for negative values (< 0) of the default series.
 func WithNegativeStyle(s lipgloss.Style) Option {
 	return func(m *Model) { m.SetNegativeStyle(s) }
@@ -128,4 +127,3 @@ func WithSeriesInverted(name string, inverted bool) Option {
 func WithInverted(inverted bool) Option {
 	return func(m *Model) { m.SetInverted(inverted) }
 }
-

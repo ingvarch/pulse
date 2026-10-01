@@ -103,4 +103,3 @@ func TestBytesRateFormatter(t *testing.T) {
 		t.Errorf("BytesRateFormatter(false)(-1MB) = %q, want %q", got, "-1 MB/s")
 	}
 }
-

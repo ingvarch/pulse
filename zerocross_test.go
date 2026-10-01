@@ -378,5 +378,3 @@ func TestSymmetricRange(t *testing.T) {
 		t.Fatalf("expected SetRange(-20, 80) to be [-20, 80] when symmetric is false, got [%v, %v]", m.Min(), m.Max())
 	}
 }
-
-

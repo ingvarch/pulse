@@ -16,12 +16,10 @@ In modern operations and incident response, correlating metrics with discrete en
 
 Pulse enables you to pin events directly onto the time-series grid with vertical guidelines (`┆`), custom badges or emojis (`▼`, `🚀`, `⚡`, `⚠️`), and dynamic aging cards.
 
-```text
- 100│─────────────▼─────── ╭──────────╮  [Deploy v1.4.2 (-24)]
-    │─────────────┆─────╭──╯░░░░░░░░░░╰──
-  50│─────────────┆───╭─╯░░░░░░░░░░░░░░░░
-   0│─────────────┆───╯░░░░░░░░░░░░░░░░░░
-```
+<p align="center">
+  <img src="../assets/events.png" alt="Timeline Annotations & Event Markers" width="100%" />
+</p>
+
 
 ---
 

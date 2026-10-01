@@ -55,6 +55,10 @@ pulse.WithTintColor(color) // optional custom tint color; defaults to Tokyo Nigh
 - **Custom Tint (`WithTintColor`)**: Overrides the default Tokyo Night slate (`#1f2335`) with any custom color or palette surface.
 - Grid lines (`┼`, `│`) that fall inside filled regions are cleanly absorbed so the shaded fill stays crisp and uniform without visual glitches.
 
+<p align="center">
+  <img src="../assets/fill.png" alt="Shaded and Tinted Area Fill" width="100%" />
+</p>
+
 ---
 
 ## 2. Braille Matrix (`ModeBraille`)
