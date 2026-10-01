@@ -358,7 +358,6 @@ func (m *Model) SetSymmetric(on bool) {
 // Symmetric returns whether symmetric Y range normalization is enabled.
 func (m *Model) Symmetric() bool { return m.symmetric }
 
-
 // SetNegativeStyle dynamically sets the negative line style for the default series.
 func (m *Model) SetNegativeStyle(s lipgloss.Style) {
 	m.negativeStyle = s
@@ -441,4 +440,3 @@ func (m *Model) SetInverted(inverted bool) {
 func (m *Model) Inverted() bool {
 	return m.inverted
 }
-

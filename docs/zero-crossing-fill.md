@@ -8,6 +8,10 @@ This capability is essential for modern terminal dashboards monitoring:
 * **Financial & Trading Metrics (P&L / Cash Flow)**: Gains rendered in green above zero, losses rendered in red below zero.
 * **Queue / Buffer Dynamics**: Queue accumulation rate ($> 0$) vs drain rate ($< 0$).
 
+<p align="center">
+  <img src="../assets/rxtx.png" alt="Pulse Bidirectional Zero-Crossing Fill" width="100%" />
+</p>
+
 ---
 
 ## 🎯 The Problem with Bottom-Anchored Fill
@@ -17,21 +21,7 @@ In traditional terminal charting libraries, area fill (`░`) is unconditionally
 2. The zero threshold ($0.0$) disappears into the background grid without any clear boundary.
 3. Both positive and negative values share the same line color, obscuring critical phase changes.
 
-```text
-Traditional Bottom Fill (Awkward & Misleading):
-  +50│        ╭───╮
-     │░░░░░░░░│░░░│░░░░░░░░░░░░░░░░░░░░  <- Fill extends all the way down
-    0│░░░░░░░░│░░░│░░░░░░░░░░░░░░░░░░░░
-     │░░░░░░░░│░░░│░░░░░░░░╰───╯░░░░░░░
-  -50│░░░░░░░░┴───┴────────────────────
-
-Pulse Bidirectional Fill (Grafana Style):
-  +50│        ╭───╮
-     │        │░░░│                      <- Positive fill (down to 0)
-    0├────────┴───┴───────┬───┬────────  <- Prominent zero baseline (├)
-     │                    │░░░│          <- Negative fill (up to 0)
-  -50│                    ╰───╯
-```
+Pulse resolves this by introducing **Bidirectional Zero-Crossing Fill**, where positive values fill downward to $Y=0$ (`┴`), negative values fill upward to $Y=0$ (`┬`), and the zero boundary itself acts as a prominent baseline ruling (`├`).
 
 ---
 
@@ -39,13 +29,9 @@ Pulse Bidirectional Fill (Grafana Style):
 
 When `pulse.WithZeroBaseline(true)` is enabled:
 
-```text
- +100│─────────────╭───╮──────────
-     │─────────────│░░░│──────────   <- RX positive fill (down to 0)
-    0├─────────────┴───┴─────┬───┬──  <- Zero baseline (├ on axis)
-     │───────────────────────│░░░│   <- TX negative fill (up to 0)
- -100│───────────────────────╰───╯
-```
+<p align="center">
+  <img src="../assets/zerocross.png" alt="Pulse Zero Baseline Anatomy" width="100%" />
+</p>
 
 * **Y-Axis Divider (`├`)**: Replaces the regular axis bar `│` at row $Y = 0$, clearly anchoring the zero point.
 * **Baseline Ruling (`─`)**: Empty cells at $Y = 0$ render a solid baseline line, colored with `axisStyle`.
@@ -92,14 +78,7 @@ In mirror charts like RX/TX network traffic, Read/Write disk IO, or Long/Short p
 Enabling `pulse.WithSymmetric(true)` (or dynamically via `chart.SetSymmetric(true)`) automatically normalizes the Y range bounds to:
 $$[-\text{limit}, +\text{limit}] \quad \text{where} \quad \text{limit} = \max(|min|, |max|)$$
 
-```text
-Asymmetric Input: WithRange(-20, 80) -> Normalized to: [-80, 80]
-  +80│        ╭───╮
-  +40│        │░░░│                      <- +80 max
-    0├────────┴───┴───────┬───┬────────  <- Exactly at center row (h=9 -> row 4)
-  -40│                    │░░░│          <- -80 min
-  -80│                    ╰───╯
-```
+For example, an asymmetric input like `WithRange(-20, 80)` is automatically normalized to `[-80, 80]`. On a chart of height 9, row index 4 ($(9-1)/2 = 4$) becomes the exact vertical center for the zero baseline ruling (`├`), ensuring identical headroom and scaling for both ingress and egress spikes.
 
 Whenever you push data or adjust limits with `chart.SetRange(min, max)`, Pulse ensures the bounds remain balanced around zero without manual recalculations.
 
@@ -205,6 +184,10 @@ func main() {
 }
 ```
 
+<p align="center">
+  <img src="../assets/rxtx.png" alt="Network RX/TX Traffic Output" width="100%" />
+</p>
+
 ---
 
 ### 2. Single-Series Zero-Crossing (P&L / Latency Delta)
@@ -250,6 +233,10 @@ func main() {
 	fmt.Println(chart.View())
 }
 ```
+
+<p align="center">
+  <img src="../assets/zerocross.png" alt="Single-Series Zero-Crossing Output" width="100%" />
+</p>
 
 ---
 

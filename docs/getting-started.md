@@ -41,6 +41,10 @@ func main() {
 }
 ```
 
+<p align="center">
+  <img src="../assets/quickstart.png" alt="Pulse Basic Usage Output" width="100%" />
+</p>
+
 ## Sliding Window
 
 `pulse.Model` maintains an internal sliding buffer equal to the chart's width (`w`). When you call `Push(val)` or `PushSeries(name, val)` beyond the width, older points automatically roll off, creating a smooth real-time stream.
