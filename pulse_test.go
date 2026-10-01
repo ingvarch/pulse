@@ -181,6 +181,77 @@ func TestLineChart_FillToggleChangesRender(t *testing.T) {
 	}
 }
 
+func TestLineChart_TintedFillToggleChangesRender(t *testing.T) {
+	cyan := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	a := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithLineStyle(cyan), pulse.WithFill(true))
+	seedCPU(a)
+	b := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithLineStyle(cyan), pulse.WithFill(true), pulse.WithTintedFill(true))
+	seedCPU(b)
+
+	if !b.TintedFill() {
+		t.Fatal("expected TintedFill() to be true")
+	}
+	if a.View() == b.View() {
+		t.Fatal("View() with tinted fill on and off must differ")
+	}
+
+	b.SetTintedFill(false)
+	if b.TintedFill() {
+		t.Fatal("expected TintedFill() to be false after SetTintedFill(false)")
+	}
+	if a.View() != b.View() {
+		t.Fatal("expected View() to match after disabling tinted fill")
+	}
+}
+
+func TestLineChart_SolidFillToggleChangesRender(t *testing.T) {
+	cyan := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	a := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithLineStyle(cyan), pulse.WithFill(true), pulse.WithTintedFill(true))
+	seedCPU(a)
+	b := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithLineStyle(cyan), pulse.WithFill(true), pulse.WithTintedFill(true), pulse.WithSolidFill(true))
+	seedCPU(b)
+
+	if !b.SolidFill() {
+		t.Fatal("expected SolidFill() to be true")
+	}
+	if a.View() == b.View() {
+		t.Fatal("View() with solid fill and textured fill must differ")
+	}
+
+	b.SetSolidFill(false)
+	if b.SolidFill() {
+		t.Fatal("expected SolidFill() to be false after SetSolidFill(false)")
+	}
+	if a.View() != b.View() {
+		t.Fatal("expected View() to match after disabling solid fill")
+	}
+}
+
+func TestLineChart_CustomTintColorChangesRender(t *testing.T) {
+	cyan := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+	a := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithLineStyle(cyan), pulse.WithFill(true), pulse.WithTintedFill(true))
+	seedCPU(a)
+
+	customTint := lipgloss.Color("#251c3d")
+	b := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithLineStyle(cyan), pulse.WithFill(true), pulse.WithTintedFill(true), pulse.WithTintColor(customTint))
+	seedCPU(b)
+
+	if b.TintColor() != customTint {
+		t.Fatalf("expected TintColor() to be %v, got %v", customTint, b.TintColor())
+	}
+	if a.View() == b.View() {
+		t.Fatal("View() with custom tint color and default tint color must differ")
+	}
+
+	b.SetTintColor(nil)
+	if b.TintColor() != nil {
+		t.Fatal("expected TintColor() to be nil after SetTintColor(nil)")
+	}
+	if a.View() != b.View() {
+		t.Fatal("expected View() to match after resetting tint color to nil (default)")
+	}
+}
+
 func TestLineChart_PlainRenderKeepsDimensions(t *testing.T) {
 	lc := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithGrid(false), pulse.WithFill(false))
 	seedCPU(lc)

@@ -49,6 +49,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if s == "q" || s == "ctrl+c" || s == "esc" {
 			return m, tea.Quit
 		}
+		if s == "f" {
+			m.chart.SetTintedFill(!m.chart.TintedFill())
+			return m, nil
+		}
+		if s == "s" {
+			m.chart.SetSolidFill(!m.chart.SolidFill())
+			return m, nil
+		}
 		if s == "m" {
 			m.chart.ToggleRenderMode()
 			return m, nil
@@ -78,8 +86,17 @@ func (m model) View() tea.View {
 	} else if m.chart.LineWidth() > 1 {
 		modeStr = "bold ┏┛"
 	}
-	return tea.NewView(fmt.Sprintf("signal %5.1f  [%s]  (t: rounded/bold, m: braille, q: quit)\n%s\n%s\n",
-		m.last, modeStr, m.chart.View(), m.chart.LegendBox()))
+	tintStr := "tinted: on"
+	if !m.chart.TintedFill() {
+		tintStr = "tinted: off"
+	}
+	fillStr := "textured ░"
+	if m.chart.SolidFill() {
+		fillStr = "solid fill"
+	}
+	header := fmt.Sprintf("signal %5.1f  [%s, %s, %s]  (f: tint, s: solid/textured, t: width, m: braille, q: quit)\n",
+		m.last, modeStr, tintStr, fillStr)
+	return tea.NewView(header + m.chart.View() + "\n" + m.chart.LegendBox() + "\n")
 }
 
 func main() {
@@ -89,7 +106,8 @@ func main() {
 	lc := pulse.New(chartW, chartH,
 		pulse.WithRange(0, 100),
 		pulse.WithTicks(0, 25, 50, 75, 100),
-		pulse.WithLineWidth(1),
+		pulse.WithLineWidth(2),
+		pulse.WithTintedFill(true),
 		pulse.WithAxisStyle(preset.Axis),
 		pulse.WithSeriesStyle("signal", preset.LineFor(50)),
 	)

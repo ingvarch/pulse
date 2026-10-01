@@ -1,6 +1,7 @@
 package pulse
 
 import (
+	"image/color"
 	"math"
 	"slices"
 	"strings"
@@ -29,6 +30,9 @@ type Chart interface {
 	Min() float64
 	Max() float64
 	Fill() bool
+	TintedFill() bool
+	SolidFill() bool
+	TintColor() color.Color
 	Grid() bool
 	Smooth() bool
 	LineWidth() int
@@ -70,6 +74,10 @@ var (
 	_ Chart    = (*Model)(nil)
 )
 
+// DefaultTintColor is the default background tint used when TintedFill is active
+// and no custom tint color or style background is specified. Defaults to Tokyo Night slate (#1f2335).
+var DefaultTintColor color.Color = lipgloss.Color("#1f2335")
+
 // Model is a streaming terminal line chart.
 type Model struct {
 	w, h     int
@@ -78,11 +86,14 @@ type Model struct {
 	series map[string]*series
 	order  []string
 
-	grid      bool
-	fill      bool
-	smooth    bool
-	lineWidth int
-	renderer  Renderer
+	grid       bool
+	fill       bool
+	tintedFill bool
+	solidFill  bool
+	tintColor  color.Color
+	smooth     bool
+	lineWidth  int
+	renderer   Renderer
 
 	lineStyle lipgloss.Style
 	axisStyle lipgloss.Style
@@ -132,6 +143,24 @@ func WithFill(on bool) Option {
 	return func(m *Model) { m.SetFill(on) }
 }
 
+// WithTintedFill enables or disables tinted background fill under the line,
+// seamlessly bridging the gap between box-drawing characters and area fill.
+func WithTintedFill(on bool) Option {
+	return func(m *Model) { m.SetTintedFill(on) }
+}
+
+// WithSolidFill enables or disables solid background fill (spaces with background color)
+// instead of stippled glyphs (░).
+func WithSolidFill(on bool) Option {
+	return func(m *Model) { m.SetSolidFill(on) }
+}
+
+// WithTintColor sets a custom background tint color for tinted fill mode.
+// If nil, DefaultTintColor (#1f2335) is used.
+func WithTintColor(c color.Color) Option {
+	return func(m *Model) { m.SetTintColor(c) }
+}
+
 // WithSmooth enables or disables line smoothing (rounded corners or spline).
 func WithSmooth(on bool) Option {
 	return func(m *Model) { m.SetSmooth(on) }
@@ -176,16 +205,19 @@ func New(w, h int, opts ...Option) *Model {
 		h = 1
 	}
 	m := &Model{
-		w:         w,
-		h:         h,
-		min:       0,
-		max:       100,
-		series:    map[string]*series{},
-		grid:      true,
-		fill:      true,
-		smooth:    true,
-		lineWidth: 2,
-		renderer:  LinesRenderer{},
+		w:          w,
+		h:          h,
+		min:        0,
+		max:        100,
+		series:     map[string]*series{},
+		grid:       true,
+		fill:       true,
+		tintedFill: false,
+		solidFill:  false,
+		tintColor:  nil,
+		smooth:     true,
+		lineWidth:  2,
+		renderer:   LinesRenderer{},
 	}
 	for _, o := range opts {
 		o(m)
@@ -259,6 +291,15 @@ func (m *Model) SetGrid(on bool) { m.grid = on }
 
 // SetFill enables or disables area fill dynamically.
 func (m *Model) SetFill(on bool) { m.fill = on }
+
+// SetTintedFill enables or disables tinted background fill dynamically.
+func (m *Model) SetTintedFill(on bool) { m.tintedFill = on }
+
+// SetSolidFill enables or disables solid background fill dynamically.
+func (m *Model) SetSolidFill(on bool) { m.solidFill = on }
+
+// SetTintColor dynamically updates the chart background tint color.
+func (m *Model) SetTintColor(c color.Color) { m.tintColor = c }
 
 // SetSmooth enables or disables smoothing dynamically.
 func (m *Model) SetSmooth(on bool) { m.smooth = on }
@@ -362,6 +403,15 @@ func (m *Model) Max() float64 { return m.max }
 
 // Fill returns whether area fill is enabled.
 func (m *Model) Fill() bool { return m.fill }
+
+// TintedFill returns whether tinted area fill is enabled.
+func (m *Model) TintedFill() bool { return m.tintedFill }
+
+// SolidFill returns whether solid background fill is enabled.
+func (m *Model) SolidFill() bool { return m.solidFill }
+
+// TintColor returns the custom background tint color, or nil if using default.
+func (m *Model) TintColor() color.Color { return m.tintColor }
 
 // Grid returns whether grid lines are enabled.
 func (m *Model) Grid() bool { return m.grid }
@@ -970,6 +1020,16 @@ func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)
 	return sb.String()
 }
 
+func tintColorFor(c Chart, st lipgloss.Style) color.Color {
+	if tc := c.TintColor(); tc != nil && tc != (lipgloss.NoColor{}) {
+		return tc
+	}
+	if bg := st.GetBackground(); bg != nil && bg != (lipgloss.NoColor{}) {
+		return bg
+	}
+	return DefaultTintColor
+}
+
 // Render implements Renderer for LinesRenderer.
 func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 	w, h := c.Width(), c.Height()
@@ -983,14 +1043,31 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 	}
 
 	fallback, glyphWidth, glyphSmooth := c.LineStyle(), c.LineWidth(), c.Smooth()
+	tinted := c.TintedFill()
+	solid := c.SolidFill()
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
 		if lineMask[r][col] != 0 {
 			st := styleFor(lineOwner[r][col], ctx.Styles, fallback)
+			if tinted {
+				st = st.Background(tintColorFor(c, st))
+			}
 			ru := runeForMask(glyphWidth, glyphSmooth, lineMask[r][col])
 			return st.Render(string(ru)), true
 		}
 		if fillMask[r][col] {
-			st := faintStyleFor(fillOwner[r][col], ctx.Styles, fallback)
+			owner := fillOwner[r][col]
+			st := faintStyleFor(owner, ctx.Styles, fallback)
+			if tinted {
+				baseStyle := styleFor(owner, ctx.Styles, fallback)
+				bg := tintColorFor(c, baseStyle)
+				if solid {
+					return lipgloss.NewStyle().Background(bg).Render(" "), true
+				}
+				return st.Background(bg).Render("░"), true
+			}
+			if solid {
+				return " ", true
+			}
 			return st.Render("░"), true
 		}
 		return "", false
@@ -1027,15 +1104,27 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 	}
 
 	fallback := c.LineStyle()
+	tinted := c.TintedFill()
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
-		if grid[r][col] != 0 {
+		lineDots := grid[r][col]
+		fillDots := fillMask[r][col]
+		dots := lineDots | fillDots
+		if dots == 0 {
+			return "", false
+		}
+		if lineDots != 0 {
 			st := styleFor(owner[r][col], ctx.Styles, fallback)
-			return st.Render(string(rune(0x2800 + int(grid[r][col])))), true
+			if tinted {
+				st = st.Background(tintColorFor(c, st))
+			}
+			return st.Render(string(rune(0x2800 + int(dots)))), true
 		}
-		if fillMask[r][col] != 0 {
-			st := faintStyleFor(fillOwner[r][col], ctx.Styles, fallback)
-			return st.Render(string(rune(0x2800 + int(fillMask[r][col])))), true
+		ownerIdx := fillOwner[r][col]
+		st := faintStyleFor(ownerIdx, ctx.Styles, fallback)
+		if tinted {
+			baseStyle := styleFor(ownerIdx, ctx.Styles, fallback)
+			st = st.Background(tintColorFor(c, baseStyle))
 		}
-		return "", false
+		return st.Render(string(rune(0x2800 + int(dots)))), true
 	})
 }

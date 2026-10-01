@@ -92,6 +92,7 @@ func renderStyled() {
 		pulse.WithRange(0, 100),
 		pulse.WithTicks(0, 25, 50, 75, 100),
 		pulse.WithLineWidth(2), // Bold curves
+		pulse.WithTintedFill(true),
 		pulse.WithAxisStyle(preset.Axis),
 		pulse.WithSeriesStyle("cluster-a", preset.LineFor(88.0)), // Red threshold warning
 		pulse.WithSeriesStyle("cluster-b", lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))), // Purple
