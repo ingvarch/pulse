@@ -27,6 +27,40 @@ type VisibleEvent struct {
 	Event Event // The event metadata
 }
 
+func eventsByColumn(events []VisibleEvent) map[int]VisibleEvent {
+	m := make(map[int]VisibleEvent, len(events))
+	for _, ve := range events {
+		m[ve.Col] = ve
+	}
+	return m
+}
+
+func renderEventPin(ve VisibleEvent) string {
+	glyph := ve.Event.Glyph
+	if glyph == "" {
+		glyph = "▼"
+	}
+	st := ve.Event.Style
+	if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+		st = st.Foreground(DefaultEventColor).Bold(true)
+	}
+	return st.Render(glyph)
+}
+
+func renderEventGuideline(ve VisibleEvent, bg color.Color) (string, bool) {
+	if ve.Event.NoLine {
+		return "", false
+	}
+	st := ve.Event.Style
+	if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+		st = st.Foreground(DefaultEventColor).Faint(true)
+	}
+	if bg != nil && bg != (lipgloss.NoColor{}) {
+		st = st.Background(bg)
+	}
+	return st.Render("┆"), true
+}
+
 type eventRecord struct {
 	event Event
 	step  int
