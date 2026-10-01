@@ -143,6 +143,7 @@ Detailed guides and API references are available in the [docs](docs/) directory:
 | [**Getting Started**](docs/getting-started.md) | Constructor options, sliding window buffers, multi-series, and runtime controls |
 | [**Rendering Modes**](docs/rendering-modes.md) | Box-drawing curves (rounded vs bold), Braille sub-pixel matrix, and area fill |
 | [**Axes & Grid**](docs/axes-and-grid.md) | Adaptive NiceTicks, custom tick quarter-steps, and Grafana grid alignment |
+| [**Zero-Crossing & RX/TX**](docs/zero-crossing-fill.md) | Grafana-style bidirectional charts, zero baseline rulings, and series inversion |
 | [**Timeline Events**](docs/timeline-events.md) | Pin deployments, alerts, and markers (`▼`, `🚀`, `⚡`) with guidelines and sliding cards |
 | [**Bubble Tea Integration**](docs/bubbletea.md) | Embedding in Bubble Tea models, telemetry ticks, and interactive hotkeys |
 
@@ -151,6 +152,9 @@ Detailed guides and API references are available in the [docs](docs/) directory:
 Try the included examples directly from your terminal:
 
 ```bash
+# Grafana-style live network traffic (RX / TX) with zero baseline & mode toggles
+go run ./examples/rxtxdemo
+
 # Live multi-series stream (CPU, MEM, NET) with hotkeys: t (thickness), m (braille), q (quit)
 go run ./examples/multidemo
 
