@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ingvarch/pulse"
 	"github.com/ingvarch/pulse/theme"
@@ -57,6 +58,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chart.SetSolidFill(!m.chart.SolidFill())
 			return m, nil
 		}
+		if s == "e" {
+			m.chart.AddEvent(pulse.Event{
+				Label: fmt.Sprintf("Event @ %02.0f", m.last),
+				Glyph: "🏷️",
+				Style: lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Bold(true),
+			})
+			return m, nil
+		}
 		if s == "m" {
 			m.chart.ToggleRenderMode()
 			return m, nil
@@ -94,9 +103,15 @@ func (m model) View() tea.View {
 	if m.chart.SolidFill() {
 		fillStr = "solid fill"
 	}
-	header := fmt.Sprintf("signal %5.1f  [%s, %s, %s]  (f: tint, s: solid/textured, t: width, m: braille, q: quit)\n",
+	header := fmt.Sprintf("signal %5.1f  [%s, %s, %s]  (f: tint, s: solid, t: width, e: drop event, m: braille, q: quit)\n",
 		m.last, modeStr, tintStr, fillStr)
-	return tea.NewView(header + m.chart.View() + "\n" + m.chart.LegendBox() + "\n")
+
+	boxes := m.chart.LegendBox()
+	if eb := m.chart.EventsBox(); eb != "" {
+		boxes = lipgloss.JoinHorizontal(lipgloss.Top, boxes, "  ", eb)
+	}
+
+	return tea.NewView(header + m.chart.View() + "\n" + boxes + "\n")
 }
 
 func main() {
@@ -120,6 +135,18 @@ func main() {
 	}
 	lastVal := signal(initStep)
 	lc.SetSeriesStyle("signal", preset.LineFor(lastVal))
+
+	// Pre-seed timeline events to showcase the feature on startup
+	lc.AddEventAt(52, pulse.Event{
+		Label: "Deploy v1.4.2",
+		Glyph: "🚀",
+		Style: lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Bold(true),
+	})
+	lc.AddEventAt(24, pulse.Event{
+		Label: "Traffic Spike",
+		Glyph: "⚡",
+		Style: lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Bold(true),
+	})
 
 	p := tea.NewProgram(model{
 		chart:  lc,

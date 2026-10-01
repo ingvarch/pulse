@@ -30,6 +30,7 @@
 - **░ Shaded Area Fill**: Half-tone shading beneath curves that cleanly absorbs grid intersections.
 - **┼ Aligned Coordinate Grid**: Subtle coordinate grid aligned exactly to Y-axis ticks and width quarter-steps.
 - **📈 Multi-Series Support**: Plot multiple named metrics simultaneously with dedicated styles and swatches.
+- **🏷️ Timeline Annotations**: Pin events, deploys, and alerts onto the sliding timeline with custom glyphs and vertical guidelines.
 - **📦 Live Legend Box**: Bordered legend overlay displaying swatches, names, and real-time values.
 - **🫧 Charm Native**: Fully customizable with Lip Gloss styles and built for Bubble Tea event loops.
 
@@ -142,6 +143,7 @@ Detailed guides and API references are available in the [docs](docs/) directory:
 | [**Getting Started**](docs/getting-started.md) | Constructor options, sliding window buffers, multi-series, and runtime controls |
 | [**Rendering Modes**](docs/rendering-modes.md) | Box-drawing curves (rounded vs bold), Braille sub-pixel matrix, and area fill |
 | [**Axes & Grid**](docs/axes-and-grid.md) | Adaptive NiceTicks, custom tick quarter-steps, and Grafana grid alignment |
+| [**Timeline Events**](docs/timeline-events.md) | Pin deployments, alerts, and markers (`▼`, `🚀`, `⚡`) with guidelines and sliding cards |
 | [**Bubble Tea Integration**](docs/bubbletea.md) | Embedding in Bubble Tea models, telemetry ticks, and interactive hotkeys |
 
 ## 🎮 Interactive Demos
