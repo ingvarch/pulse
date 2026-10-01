@@ -189,7 +189,13 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 
 	base := dotYOf(h, c.Min(), c.Max(), 0)
 	for idx, name := range ctx.Names {
-		colTop := plotSeriesBraille(c, grid, owner, idx, c.SeriesData(name))
+		var data []float64
+		if idx < len(ctx.SeriesData) && ctx.SeriesData[idx] != nil {
+			data = ctx.SeriesData[idx]
+		} else {
+			data = c.SeriesData(name)
+		}
+		colTop := plotSeriesBraille(c, grid, owner, idx, data)
 		if !c.Fill() {
 			continue
 		}
