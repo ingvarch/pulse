@@ -1,6 +1,7 @@
 package pulse
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"slices"
@@ -23,6 +24,22 @@ const (
 	ModeCustom
 )
 
+// Event represents a discrete timeline annotation or event marker.
+type Event struct {
+	ID     string         // Optional identifier for programmatic lookup or removal
+	Label  string         // Human-readable description (e.g. "Deploy v1.4.2")
+	Glyph  string         // Marker glyph (e.g. "▼", "🚀", "▲", "◆", "!", "⚠️"). Defaults to "▼".
+	Style  lipgloss.Style // Style for the marker glyph and vertical guideline
+	NoLine bool           // If true, omits the vertical guideline across the chart
+}
+
+// VisibleEvent pairs an Event with its current visible column in the chart window.
+type VisibleEvent struct {
+	Col   int   // Column index in current plot area (0 to Width()-1)
+	Age   int   // How many time steps ago this event occurred
+	Event Event // The event metadata
+}
+
 // Chart provides the read-only contract for inspecting chart dimensions, data, and styles.
 type Chart interface {
 	Width() int
@@ -41,6 +58,7 @@ type Chart interface {
 	SeriesStyle(name string) lipgloss.Style
 	SeriesNames() []string
 	SeriesData(name string) []float64
+	VisibleEvents() []VisibleEvent
 }
 
 // RenderContext contains prepared axis, tick, label, and style metadata passed to a Renderer.
@@ -102,6 +120,14 @@ type Model struct {
 
 	labelWidth     int
 	labelFormatter func(float64) string
+
+	step   int
+	events []eventRecord
+}
+
+type eventRecord struct {
+	event Event
+	step  int
 }
 
 type series struct {
@@ -159,6 +185,11 @@ func WithSolidFill(on bool) Option {
 // If nil, DefaultTintColor (#1f2335) is used.
 func WithTintColor(c color.Color) Option {
 	return func(m *Model) { m.SetTintColor(c) }
+}
+
+// WithEvent registers an initial timeline event marker at a historical offset (0 = newest point).
+func WithEvent(offset int, ev Event) Option {
+	return func(m *Model) { m.AddEventAt(offset, ev) }
 }
 
 // WithSmooth enables or disables line smoothing (rounded corners or spline).
@@ -251,6 +282,9 @@ func (m *Model) PushSeries(name string, v float64) {
 	s.data = append(s.data, v)
 	if len(s.data) > m.w {
 		s.data = s.data[len(s.data)-m.w:]
+	}
+	if len(m.order) == 0 || name == m.order[0] || name == "" {
+		m.step++
 	}
 }
 
@@ -490,6 +524,89 @@ func (m *Model) LegendBox() string {
 			value = m.formatValue(v)
 		}
 		lines = append(lines, swatch+" "+m.axisStyle.Render(name+" "+value))
+	}
+	return lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		Padding(0, 1).
+		Render(strings.Join(lines, "\n"))
+}
+
+// AddEvent records an event at the current newest point on the timeline.
+// As new points are pushed, the event moves left across the window.
+func (m *Model) AddEvent(ev Event) {
+	m.AddEventAt(0, ev)
+}
+
+// AddEventAt records an event at a historical offset (0 = newest point, 10 = 10 points ago).
+func (m *Model) AddEventAt(offset int, ev Event) {
+	if offset < 0 {
+		offset = 0
+	}
+	m.events = append(m.events, eventRecord{
+		event: ev,
+		step:  m.step - offset,
+	})
+}
+
+// ClearEvents removes all timeline events from the chart.
+func (m *Model) ClearEvents() {
+	m.events = nil
+}
+
+// VisibleEvents returns all timeline events currently visible within the chart window.
+func (m *Model) VisibleEvents() []VisibleEvent {
+	if len(m.events) == 0 {
+		return nil
+	}
+	w := m.w
+	out := make([]VisibleEvent, 0, len(m.events))
+	pruned := make([]eventRecord, 0, len(m.events))
+	for _, rec := range m.events {
+		age := m.step - rec.step
+		col := (w - 1) - age
+		if col >= 0 && col < w {
+			out = append(out, VisibleEvent{
+				Col:   col,
+				Age:   age,
+				Event: rec.event,
+			})
+		}
+		if col >= 0 {
+			pruned = append(pruned, rec)
+		}
+	}
+	m.events = pruned
+	return out
+}
+
+// EventsBox returns a boxed card listing all currently visible timeline events.
+// Returns an empty string if there are no visible events.
+func (m *Model) EventsBox() string {
+	events := m.VisibleEvents()
+	if len(events) == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(events))
+	for _, ve := range events {
+		glyph := ve.Event.Glyph
+		if glyph == "" {
+			glyph = "▼"
+		}
+		st := ve.Event.Style
+		if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+			st = st.Foreground(lipgloss.Color("#7dcfff")).Bold(true)
+		}
+		badge := st.Render(glyph)
+		label := ve.Event.Label
+		if label == "" {
+			label = "Event"
+		}
+		timeAgo := fmt.Sprintf("(-%d)", ve.Age)
+		if ve.Age == 0 {
+			timeAgo = "(now)"
+		}
+		line := badge + " " + m.axisStyle.Render(label) + " " + m.axisStyle.Faint(true).Render(timeAgo)
+		lines = append(lines, line)
 	}
 	return lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -1005,6 +1122,9 @@ func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)
 		for col := 0; col < w; col++ {
 			if s, ok := cellAt(r, col); ok {
 				sb.WriteString(s)
+				if sw := lipgloss.Width(s); sw > 1 {
+					col += sw - 1
+				}
 				continue
 			}
 			if ctx.HGrid[r] || ctx.VGrid[col] {
@@ -1042,10 +1162,28 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		plotSeriesLines(c, lineMask, lineOwner, fillMask, fillOwner, idx, c.SeriesData(name))
 	}
 
+	visibleEvents := c.VisibleEvents()
+	eventMap := make(map[int]VisibleEvent, len(visibleEvents))
+	for _, ve := range visibleEvents {
+		eventMap[ve.Col] = ve
+	}
+
 	fallback, glyphWidth, glyphSmooth := c.LineStyle(), c.LineWidth(), c.Smooth()
 	tinted := c.TintedFill()
 	solid := c.SolidFill()
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
+		ve, hasEvent := eventMap[col]
+		if hasEvent && r == 0 {
+			glyph := ve.Event.Glyph
+			if glyph == "" {
+				glyph = "▼"
+			}
+			st := ve.Event.Style
+			if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+				st = st.Foreground(lipgloss.Color("#7dcfff")).Bold(true)
+			}
+			return st.Render(glyph), true
+		}
 		if lineMask[r][col] != 0 {
 			st := styleFor(lineOwner[r][col], ctx.Styles, fallback)
 			if tinted {
@@ -1053,6 +1191,18 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			}
 			ru := runeForMask(glyphWidth, glyphSmooth, lineMask[r][col])
 			return st.Render(string(ru)), true
+		}
+		if hasEvent && !ve.Event.NoLine {
+			guideStyle := ve.Event.Style
+			if guideStyle.GetForeground() == nil || guideStyle.GetForeground() == (lipgloss.NoColor{}) {
+				guideStyle = guideStyle.Foreground(lipgloss.Color("#7dcfff")).Faint(true)
+			}
+			if fillMask[r][col] && tinted {
+				baseStyle := styleFor(fillOwner[r][col], ctx.Styles, fallback)
+				bg := tintColorFor(c, baseStyle)
+				return guideStyle.Background(bg).Render("┆"), true
+			}
+			return guideStyle.Render("┆"), true
 		}
 		if fillMask[r][col] {
 			owner := fillOwner[r][col]
@@ -1103,28 +1253,53 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 		}
 	}
 
+	visibleEvents := c.VisibleEvents()
+	eventMap := make(map[int]VisibleEvent, len(visibleEvents))
+	for _, ve := range visibleEvents {
+		eventMap[ve.Col] = ve
+	}
+
 	fallback := c.LineStyle()
 	tinted := c.TintedFill()
 	return renderGrid(c, ctx, func(r, col int) (string, bool) {
+		ve, hasEvent := eventMap[col]
+		if hasEvent && r == 0 {
+			glyph := ve.Event.Glyph
+			if glyph == "" {
+				glyph = "▼"
+			}
+			st := ve.Event.Style
+			if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+				st = st.Foreground(lipgloss.Color("#7dcfff")).Bold(true)
+			}
+			return st.Render(glyph), true
+		}
 		lineDots := grid[r][col]
 		fillDots := fillMask[r][col]
 		dots := lineDots | fillDots
-		if dots == 0 {
-			return "", false
-		}
-		if lineDots != 0 {
-			st := styleFor(owner[r][col], ctx.Styles, fallback)
+		if dots != 0 {
+			if lineDots != 0 {
+				st := styleFor(owner[r][col], ctx.Styles, fallback)
+				if tinted {
+					st = st.Background(tintColorFor(c, st))
+				}
+				return st.Render(string(rune(0x2800 + int(dots)))), true
+			}
+			ownerIdx := fillOwner[r][col]
+			st := faintStyleFor(ownerIdx, ctx.Styles, fallback)
 			if tinted {
-				st = st.Background(tintColorFor(c, st))
+				baseStyle := styleFor(ownerIdx, ctx.Styles, fallback)
+				st = st.Background(tintColorFor(c, baseStyle))
 			}
 			return st.Render(string(rune(0x2800 + int(dots)))), true
 		}
-		ownerIdx := fillOwner[r][col]
-		st := faintStyleFor(ownerIdx, ctx.Styles, fallback)
-		if tinted {
-			baseStyle := styleFor(ownerIdx, ctx.Styles, fallback)
-			st = st.Background(tintColorFor(c, baseStyle))
+		if hasEvent && !ve.Event.NoLine {
+			guideStyle := ve.Event.Style
+			if guideStyle.GetForeground() == nil || guideStyle.GetForeground() == (lipgloss.NoColor{}) {
+				guideStyle = guideStyle.Foreground(lipgloss.Color("#7dcfff")).Faint(true)
+			}
+			return guideStyle.Render("┆"), true
 		}
-		return st.Render(string(rune(0x2800 + int(dots)))), true
+		return "", false
 	})
 }
