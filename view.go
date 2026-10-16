@@ -60,7 +60,7 @@ func (m *Model) View() string {
 	rowLabel := map[int]string{}
 	for i := len(ticks) - 1; i >= 0; i-- {
 		t := ticks[i]
-		if t < m.min || t > m.max {
+		if isGap(t) || t < m.min || t > m.max {
 			continue
 		}
 		row := m.tickRow(t)
@@ -88,7 +88,7 @@ func (m *Model) View() string {
 	hGrid := make([]bool, m.h)
 	vGrid := make([]bool, m.w)
 	if m.grid {
-		for r := range hGrid {
+		for r := range rowLabel {
 			hGrid[r] = true
 		}
 		for k := 1; k < 4; k++ {
