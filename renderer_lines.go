@@ -118,16 +118,31 @@ func plotSeriesLines(
 	if startCol < 0 {
 		startCol = 0
 		data = data[n-window:]
-		n = window
 	}
 
 	ys := make([]int, window)
 	for j, v := range data {
 		col := startCol + j
-		ys[col] = tickRowOf(h, min, max, v)
+		if !isGap(v) {
+			ys[col] = tickRowOf(h, min, max, v)
+		}
 	}
+	finite := func(col int) bool { return col >= startCol && col < window && !isGap(data[col-startCol]) }
 
-	for col := startCol + 1; col < window; col++ {
+	for col := startCol; col < window; col++ {
+		if !finite(col) {
+			continue
+		}
+		if !finite(col - 1) {
+			// Segment start; a lone point is a short horizontal stroke.
+			mask := uint8(armLeft)
+			if !finite(col + 1) {
+				mask |= armRight
+			}
+			lineMask[ys[col]][col] |= mask
+			lineOwner[ys[col]][col] = idx
+			continue
+		}
 		y0 := ys[col-1]
 		y1 := ys[col]
 
@@ -158,15 +173,6 @@ func plotSeriesLines(
 		}
 	}
 
-	// Terminate endpoints
-	if n == 1 {
-		lineMask[ys[startCol]][startCol] |= (armLeft | armRight)
-		lineOwner[ys[startCol]][startCol] = idx
-	} else if ys[startCol] >= 0 && ys[startCol] < h {
-		lineMask[ys[startCol]][startCol] |= armLeft
-		lineOwner[ys[startCol]][startCol] = idx
-	}
-
 	// Baseline for area fill (0 by default)
 	baseRow := tickRowOf(h, min, max, 0)
 	hasZeroBaseline := c.ZeroBaseline() && min <= 0 && max >= 0
@@ -174,6 +180,9 @@ func plotSeriesLines(
 	// Shaded area fill ░ below the line (strictly beneath the line's lower boundary in each column)
 	if c.Fill() {
 		for col := startCol; col < window; col++ {
+			if !finite(col) {
+				continue
+			}
 			bottomY := -1
 			topY := -1
 			for r := h - 1; r >= 0; r-- {

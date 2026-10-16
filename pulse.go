@@ -109,11 +109,13 @@ func (m *Model) getOrCreate(name string) *series {
 }
 
 // Push adds a data point to the default series. Maintains a sliding window of width w.
+// NaN, +Inf and -Inf are kept as given and drawn as gaps.
 func (m *Model) Push(v float64) {
 	m.PushSeries("", v)
 }
 
 // PushSeries adds a data point to a named series.
+// NaN, +Inf and -Inf are kept as given and drawn as gaps.
 func (m *Model) PushSeries(name string, v float64) {
 	s := m.getOrCreate(name)
 	s.data = append(s.data, v)
@@ -314,6 +316,7 @@ func (m *Model) SeriesNames() []string {
 }
 
 // SeriesData returns a copy of data points for a series.
+// Missing points are returned raw (NaN, +Inf, -Inf), so custom renderers see them.
 func (m *Model) SeriesData(name string) []float64 {
 	s, ok := m.series[name]
 	if !ok {
@@ -332,13 +335,19 @@ func (m *Model) SeriesStyle(name string) lipgloss.Style {
 	return m.lineStyle
 }
 
-// Last returns the most recent value of a named series.
+// Last returns the most recent finite value of a named series.
+// Trailing gaps (NaN, +Inf, -Inf) are skipped.
 func (m *Model) Last(name string) (float64, bool) {
 	s, ok := m.series[name]
-	if !ok || len(s.data) == 0 {
+	if !ok {
 		return 0, false
 	}
-	return s.data[len(s.data)-1], true
+	for i := len(s.data) - 1; i >= 0; i-- {
+		if !isGap(s.data[i]) {
+			return s.data[i], true
+		}
+	}
+	return 0, false
 }
 
 // SetZeroBaseline enables or disables explicit zero baseline rendering.
