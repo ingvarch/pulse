@@ -32,3 +32,5 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 )
+
+retract v0.6.0 // Tagged on the v0.5.0 commit, without the gaps, grid and time axis changes.
