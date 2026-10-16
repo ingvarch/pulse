@@ -34,6 +34,7 @@ type Model struct {
 
 	labelWidth     int
 	labelFormatter func(float64) string
+	xAxisLabel     func(age int) string
 
 	step   int
 	events []eventRecord
@@ -272,10 +273,15 @@ func (m *Model) Renderer() Renderer {
 	return m.renderer
 }
 
+// SetXAxis sets the X axis label function; nil turns the axis off.
+// See WithXAxis.
+func (m *Model) SetXAxis(label func(age int) string) { m.xAxisLabel = label }
+
 // Width returns the chart plot width in terminal cells.
 func (m *Model) Width() int { return m.w }
 
 // Height returns the chart plot height in terminal cells.
+// With an X axis, View returns Height()+2 lines.
 func (m *Model) Height() int { return m.h }
 
 // Min returns the chart minimum Y value.

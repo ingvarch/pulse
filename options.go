@@ -127,3 +127,10 @@ func WithSeriesInverted(name string, inverted bool) Option {
 func WithInverted(inverted bool) Option {
 	return func(m *Model) { m.SetInverted(inverted) }
 }
+
+// WithXAxis draws an axis row and a label row under the plot.
+// label returns the text for the point age steps before the newest (age 0 is the newest point).
+// With the axis on, View returns Height()+2 lines.
+func WithXAxis(label func(age int) string) Option {
+	return func(m *Model) { m.SetXAxis(label) }
+}

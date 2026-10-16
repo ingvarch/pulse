@@ -40,7 +40,13 @@ func (m *Model) formatValue(v float64) string {
 	return scale.FormatTick(v)
 }
 
-// View renders the chart: Y-axis labels + axis border + plot area.
+// quarterCols returns the columns at 1/4, 2/4 and 3/4 of width w.
+func quarterCols(w int) [3]int {
+	return [3]int{w / 4, 2 * w / 4, 3 * w / 4}
+}
+
+// View renders the chart: Y-axis labels + axis border + plot area,
+// then the X axis and label rows when WithXAxis is set.
 func (m *Model) View() string {
 	ticks := m.gridTicks()
 	if m.zeroBaseline && m.min <= 0 && m.max >= 0 {
@@ -91,10 +97,8 @@ func (m *Model) View() string {
 		for r := range rowLabel {
 			hGrid[r] = true
 		}
-		for k := 1; k < 4; k++ {
-			if col := k * m.w / 4; col < m.w {
-				vGrid[col] = true
-			}
+		for _, col := range quarterCols(m.w) {
+			vGrid[col] = true
 		}
 	}
 
@@ -143,7 +147,12 @@ func (m *Model) View() string {
 	if r == nil {
 		r = LinesRenderer{}
 	}
-	return r.Render(m, ctx)
+	out := r.Render(m, ctx)
+	if m.xAxisLabel == nil {
+		return out
+	}
+	axis, labels := m.xAxisRows(labelWidth)
+	return out + "\n" + axis + "\n" + labels
 }
 
 // String implements fmt.Stringer, returning the rendered chart View().

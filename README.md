@@ -34,6 +34,7 @@
 - **📦 Live Legend Box**: Bordered legend overlay displaying swatches, names, and real-time values.
 - **⚖️ Bidirectional & RX/TX Traffic**: Grafana-style zero baseline rulings, inverted mirror series, auto-symmetric centering, and adaptive byte rate formatters.
 - **⌇ Gaps for Missing Points**: Push `math.NaN()` for a missing sample. `NaN` and `±Inf` draw as gaps, with no line, fill, or connecting stroke.
+- **└┴ Optional Time Axis**: `WithXAxis` adds an axis row and a label row under the plot, with labels from your own function of the point age.
 - **🫧 Charm Native**: Fully customizable with Lip Gloss styles and built for Bubble Tea event loops.
 
 ## 🚀 Quick Start
