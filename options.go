@@ -134,3 +134,11 @@ func WithInverted(inverted bool) Option {
 func WithXAxis(label func(age int) string) Option {
 	return func(m *Model) { m.SetXAxis(label) }
 }
+
+// WithXAxisAt draws the X axis like WithXAxis, with labels at the columns you choose.
+// label is asked for every column (age 0 to width-1); a non-empty text proposes a label there.
+// The right edge goes first, then the other columns from right to left; a label that runs past
+// an edge or touches a placed one is dropped. Vertical grid lines follow the placed middle labels.
+func WithXAxisAt(label func(age int) string) Option {
+	return func(m *Model) { m.SetXAxisAt(label) }
+}
