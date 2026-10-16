@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/ingvarch/pulse"
@@ -13,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis")
 	flag.Parse()
 
 	switch *mode {
@@ -33,6 +34,8 @@ func main() {
 		renderFill()
 	case "zerocross":
 		renderZeroCross()
+	case "xaxis":
+		renderXAxis()
 	}
 }
 
@@ -329,6 +332,52 @@ func renderZeroCross() {
 		Bold(true).
 		Foreground(lipgloss.Color("#c0caf5")).
 		Render("BIDIRECTIONAL ZERO-CROSSING (LATENCY DRIFT)")
+
+	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(content)
+
+	fmt.Println(box)
+}
+
+func renderXAxis() {
+	preset := theme.TokyoNight()
+	chartW, chartH := 80, 13
+	newest := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+	step := 7 * 24 * time.Hour / time.Duration(chartW)
+
+	lc := pulse.New(chartW, chartH,
+		pulse.WithRange(0, 100),
+		pulse.WithTicks(0, 25, 50, 75, 100),
+		pulse.WithLineWidth(1),
+		pulse.WithFill(true),
+		pulse.WithTintedFill(true),
+		pulse.WithGrid(true),
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithLineStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7"))),
+		pulse.WithXAxis(func(age int) string {
+			return newest.Add(-time.Duration(age) * step).Format("Jan 2")
+		}),
+	)
+
+	rng := rand.New(rand.NewSource(7))
+	for i := 0; i < chartW; i++ {
+		if i >= 52 && i < 58 {
+			lc.Push(math.NaN())
+			continue
+		}
+		v := 38 + 24*math.Sin(float64(i)*0.2) + 8*math.Cos(float64(i)*0.07) + (rng.Float64()-0.5)*6
+		lc.Push(math.Max(0, math.Min(100, v)))
+	}
+
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Render("CPU, LAST 7 DAYS (GAP = NO DATA)")
 
 	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
 

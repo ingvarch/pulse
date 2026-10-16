@@ -43,6 +43,38 @@ chart := pulse.New(60, 12,
   <img src="../assets/fill.png" alt="Grafana-Style Coordinate Grid" width="100%" />
 </p>
 
+## Time Axis (`WithXAxis`)
+
+`pulse.WithXAxis(label)` draws an axis row and a label row under the plot. `label(age)` returns the text for the point `age` steps before the newest one, so age 0 is the newest point. The function runs on every `View()` and gets only the age. To keep the labels with the data, compute them from the time of the newest point and update that time on each push.
+
+```go
+var newest time.Time            // time of the newest point
+step := 7 * 24 * time.Hour / 60 // 60 points cover 7 days
+
+chart := pulse.New(60, 10,
+    pulse.WithRange(0, 100),
+    pulse.WithXAxis(func(age int) string {
+        return newest.Add(-time.Duration(age) * step).Format("Jan 2")
+    }),
+)
+
+// For each sample:
+newest = sample.Time
+chart.Push(sample.Value)
+```
+
+Labels sit at the left edge, the right edge, and at the quarter columns (`w / 4`, `2w / 4`, `3w / 4`), the same columns as the vertical grid. The left label starts at column 0, the right label ends at the last column, and the middle labels are centered on their column with a `┴` mark on the axis row.
+
+- An empty string means no label and no mark at that column.
+- A label that does not fit inside the plot width is dropped.
+- Labels keep at least one space between them. The right edge is placed first, then the left edge, then the quarters. A label that would touch one already placed is dropped, so narrow charts show only the edge labels.
+
+`Height()` stays the plot height. With the axis on, `View()` returns `Height()+2` lines: the plot rows, the axis row, and the label row. Leave room for the two extra lines when you lay the chart out. The axis rows do not depend on the grid, the render mode, or events. `chart.SetXAxis(nil)` turns the axis off.
+
+<p align="center">
+  <img src="../assets/xaxis.png" alt="Time axis under a 7-day CPU chart with a gap" width="100%" />
+</p>
+
 ## Symmetric Y-Axis (`WithSymmetric`)
 
 When plotting bidirectional metrics (such as network RX/TX, disk read/write, or profit/loss), you often need zero to stay directly in the vertical center of the chart with equal positive and negative scaling.
