@@ -41,6 +41,7 @@ type Chart interface {
 	LineStyle() lipgloss.Style
 	SeriesStyle(name string) lipgloss.Style
 	SeriesNames() []string
+	// SeriesData returns raw values, including NaN and Inf for missing points.
 	SeriesData(name string) []float64
 	VisibleEvents() []VisibleEvent
 	ZeroBaseline() bool
@@ -83,6 +84,11 @@ func spanOf(min, max float64) float64 {
 		return 1
 	}
 	return max - min
+}
+
+// isGap reports whether v is a missing point (NaN or ±Inf) that is drawn as a gap.
+func isGap(v float64) bool {
+	return math.IsNaN(v) || math.IsInf(v, 0)
 }
 
 func normOf(min, max, v float64) float64 {

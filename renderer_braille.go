@@ -166,12 +166,6 @@ func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, isNegGrid [][]boo
 	if den < 1 {
 		den = 1
 	}
-	xs := make([]int, n)
-	ys := make([]int, n)
-	for j, v := range data {
-		xd := (window - n + j) * dw / den
-		xs[j], ys[j] = xd, dotYOf(h, min, max, v)
-	}
 	base := dotYOf(h, min, max, 0)
 	record := func(xd, yd int) {
 		if xd >= 0 && xd < len(colMaxY) {
@@ -183,10 +177,27 @@ func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, isNegGrid [][]boo
 			}
 		}
 	}
-	for _, d := range sampleLineOf(w, h, c.Smooth(), xs, ys) {
-		isNeg := d.y < base || (c.Max() < 0)
-		plotDots(grid, owner, isNegGrid, isNeg, idx, c.LineWidth(), w, h, d.x, d.y)
-		record(d.x, d.y)
+	plotRun := func(xs, ys []int) {
+		for _, d := range sampleLineOf(w, h, c.Smooth(), xs, ys) {
+			isNeg := d.y < base || (c.Max() < 0)
+			plotDots(grid, owner, isNegGrid, isNeg, idx, c.LineWidth(), w, h, d.x, d.y)
+			record(d.x, d.y)
+		}
+	}
+	var xs, ys []int
+	for j, v := range data {
+		if isGap(v) {
+			if len(xs) > 0 {
+				plotRun(xs, ys)
+				xs, ys = xs[:0], ys[:0]
+			}
+			continue
+		}
+		xs = append(xs, (window-n+j)*dw/den)
+		ys = append(ys, dotYOf(h, min, max, v))
+	}
+	if len(xs) > 0 {
+		plotRun(xs, ys)
 	}
 	return colMaxY, colMinY
 }

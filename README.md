@@ -33,6 +33,7 @@
 - **🏷️ Timeline Annotations**: Pin events, deploys, and alerts onto the sliding timeline with custom glyphs and vertical guidelines.
 - **📦 Live Legend Box**: Bordered legend overlay displaying swatches, names, and real-time values.
 - **⚖️ Bidirectional & RX/TX Traffic**: Grafana-style zero baseline rulings, inverted mirror series, auto-symmetric centering, and adaptive byte rate formatters.
+- **⌇ Gaps for Missing Points**: Push `math.NaN()` for a missing sample. `NaN` and `±Inf` draw as gaps, with no line, fill, or connecting stroke.
 - **🫧 Charm Native**: Fully customizable with Lip Gloss styles and built for Bubble Tea event loops.
 
 ## 🚀 Quick Start

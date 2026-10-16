@@ -55,6 +55,18 @@ totalPoints := chart.Len()             // Default series
 cpuPoints   := chart.LenSeries("cpu")  // Named series
 ```
 
+## Missing Points
+
+Push `math.NaN()` when a sample is missing. `NaN`, `+Inf` and `-Inf` are drawn as gaps: the series draws nothing in that column, and its line stops before the gap and starts again after it. Grid lines and event markers still show in a gap.
+
+```go
+chart.Push(42)
+chart.Push(math.NaN()) // gap
+chart.Push(45)
+```
+
+`Last(name)` skips trailing gaps and returns the last finite value. It returns `(0, false)` if the series has none, and `LegendBox()` then shows no value for it. `SeriesData(name)` returns the raw values, including `NaN` and `Inf`.
+
 ## Multi-Series Plotting
 
 You can plot multiple concurrent time-series on the same coordinate space:
