@@ -1,10 +1,12 @@
 package pulse_test
 
 import (
+	"math"
 	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/ingvarch/pulse"
 )
 
@@ -110,35 +112,41 @@ func TestLineChart_PlainRenderKeepsDimensions(t *testing.T) {
 }
 
 func TestLineChart_GridLinesExactAndEven(t *testing.T) {
-	lc := pulse.New(20, 8, pulse.WithRange(0, 100))
-	rows := strings.Split(lc.View(), "\n")
-	plot := func(r int) string {
-		runes := []rune(rows[r])
-		i := -1
-		for j, ru := range runes {
-			if ru == '│' {
-				i = j
-				break
+	const w, h = 20, 7
+	tickRows := map[int]bool{0: true, 3: true, 6: true}
+	for _, m := range gapModes {
+		t.Run(m.name, func(t *testing.T) {
+			lc := pulse.New(w, h, pulse.WithRange(0, 100), pulse.WithTicks(0, 50, 100), pulse.WithMode(m.mode))
+			rows := strings.Split(ansi.Strip(lc.View()), "\n")
+			if len(rows) != h {
+				t.Fatalf("expected %d rows, got %d", h, len(rows))
 			}
-		}
-		if i < 0 {
-			t.Fatalf("row %d has no axis", r)
-		}
-		return string(runes[i+1:])
-	}
-	// Solid ruling: every row in the plot has no spaces.
-	for r := range rows {
-		for _, ru := range plot(r) {
-			if ru == ' ' {
-				t.Fatalf("grid row %d must be solid, got %q", r, plot(r))
+			for r, ln := range rows {
+				_, plot, ok := strings.Cut(ln, "│")
+				if !ok {
+					t.Fatalf("row %d has no axis", r)
+				}
+				cells := []rune(plot)
+				if len(cells) != w {
+					t.Fatalf("row %d has %d plot cells, want %d", r, len(cells), w)
+				}
+				for c, got := range cells {
+					quarter := c == 5 || c == 10 || c == 15
+					want := ' '
+					switch {
+					case tickRows[r] && quarter:
+						want = '┼'
+					case tickRows[r]:
+						want = '─'
+					case quarter:
+						want = '│'
+					}
+					if got != want {
+						t.Fatalf("row %d col %d = %q, want %q (row %q)", r, c, got, want, plot)
+					}
+				}
 			}
-		}
-	}
-	// Solid grid made of box characters.
-	for _, want := range []string{"─", "│", "┼"} {
-		if !strings.Contains(lc.View(), want) {
-			t.Fatalf("View() with grid must contain %q", want)
-		}
+		})
 	}
 	plain := pulse.New(20, 8, pulse.WithRange(0, 100), pulse.WithGrid(false), pulse.WithFill(false))
 	seedCPU(plain)
@@ -270,5 +278,17 @@ func TestLineChart_LabelFormatterAndWidth(t *testing.T) {
 	}
 	if !strings.Contains(view, "4 GHz") || !strings.Contains(view, "2 GHz") || !strings.Contains(view, "0 GHz") {
 		t.Fatalf("view must contain formatted labels: 4 GHz, 2 GHz, 0 GHz:\n%s", view)
+	}
+}
+
+func TestLineChart_NonFiniteTickIsSkipped(t *testing.T) {
+	for _, m := range gapModes {
+		t.Run(m.name, func(t *testing.T) {
+			lc := pulse.New(24, 5, pulse.WithRange(0, 100), pulse.WithTicks(math.NaN(), 50), pulse.WithMode(m.mode))
+			rows := strings.Split(ansi.Strip(lc.View()), "\n")
+			if strings.Contains(rows[0], "NaN") || strings.Contains(rows[0], "─") {
+				t.Fatalf("row 0 must have no label and no grid line, got %q", rows[0])
+			}
+		})
 	}
 }
