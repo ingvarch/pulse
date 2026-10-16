@@ -91,13 +91,18 @@ func (m *Model) View() string {
 		zeroRow = m.tickRow(0)
 	}
 
+	var placed []placedLabel
+	if m.xAxisLabel != nil {
+		placed = m.xAxisLabels()
+	}
+
 	hGrid := make([]bool, m.h)
 	vGrid := make([]bool, m.w)
 	if m.grid {
 		for r := range rowLabel {
 			hGrid[r] = true
 		}
-		for _, col := range quarterCols(m.w) {
+		for _, col := range m.vGridCols(placed) {
 			vGrid[col] = true
 		}
 	}
@@ -151,7 +156,7 @@ func (m *Model) View() string {
 	if m.xAxisLabel == nil {
 		return out
 	}
-	axis, labels := m.xAxisRows(labelWidth)
+	axis, labels := m.xAxisRows(labelWidth, placed)
 	return out + "\n" + axis + "\n" + labels
 }
 

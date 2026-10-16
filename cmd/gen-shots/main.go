@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat")
 	flag.Parse()
 
 	switch *mode {
@@ -36,6 +36,8 @@ func main() {
 		renderZeroCross()
 	case "xaxis":
 		renderXAxis()
+	case "xaxisat":
+		renderXAxisAt()
 	}
 }
 
@@ -345,12 +347,35 @@ func renderZeroCross() {
 }
 
 func renderXAxis() {
-	preset := theme.TokyoNight()
-	chartW, chartH := 80, 13
 	newest := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
-	step := 7 * 24 * time.Hour / time.Duration(chartW)
+	step := 7 * 24 * time.Hour / xAxisShotW
+	renderXAxisShot("CPU, LAST 7 DAYS (GAP = NO DATA)", pulse.WithXAxis(func(age int) string {
+		return newest.Add(-time.Duration(age) * step).Format("Jan 2")
+	}))
+}
 
-	lc := pulse.New(chartW, chartH,
+func renderXAxisAt() {
+	newest := time.Date(2026, 10, 15, 14, 47, 0, 0, time.UTC)
+	step := 24 * time.Hour / xAxisShotW
+	renderXAxisShot("CPU, LAST 24 HOURS (GAP = NO DATA)", pulse.WithXAxisAt(func(age int) string {
+		if age == 0 {
+			return "now"
+		}
+		t := newest.Add(-time.Duration(age) * step)
+		mark := time.Date(t.Year(), t.Month(), t.Day(), t.Hour()/6*6, 0, 0, 0, t.Location())
+		if t.Sub(mark) < step {
+			return mark.Format("15:04")
+		}
+		return ""
+	}))
+}
+
+const xAxisShotW = 80
+
+func renderXAxisShot(title string, axis pulse.Option) {
+	preset := theme.TokyoNight()
+
+	lc := pulse.New(xAxisShotW, 13,
 		pulse.WithRange(0, 100),
 		pulse.WithTicks(0, 25, 50, 75, 100),
 		pulse.WithLineWidth(1),
@@ -359,13 +384,11 @@ func renderXAxis() {
 		pulse.WithGrid(true),
 		pulse.WithAxisStyle(preset.Axis),
 		pulse.WithLineStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7"))),
-		pulse.WithXAxis(func(age int) string {
-			return newest.Add(-time.Duration(age) * step).Format("Jan 2")
-		}),
+		axis,
 	)
 
 	rng := rand.New(rand.NewSource(7))
-	for i := 0; i < chartW; i++ {
+	for i := 0; i < xAxisShotW; i++ {
 		if i >= 52 && i < 58 {
 			lc.Push(math.NaN())
 			continue
@@ -377,7 +400,7 @@ func renderXAxis() {
 	header := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#c0caf5")).
-		Render("CPU, LAST 7 DAYS (GAP = NO DATA)")
+		Render(title)
 
 	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
 

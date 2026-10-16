@@ -112,6 +112,7 @@ All styling and rendering options can be modified dynamically at runtime:
 ```go
 chart.SetGrid(true)            // toggle grid
 chart.SetXAxis(label)          // time labels under the plot (View adds 2 lines)
+chart.SetXAxisAt(label)        // time labels at the columns you choose
 chart.SetFill(false)           // toggle shaded area fill
 chart.SetLineWidth(2)          // switch between thin (1) and bold (2)
 chart.SetMode(pulse.ModeBraille)// switch between ModeLines and ModeBraille

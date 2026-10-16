@@ -28,13 +28,13 @@
 - **╭╯ Smooth Box-Drawing**: Continuous lines rendered with rounded arcs (`╭ ╮ ╯ ╰`) or bold strokes (`┏ ┓ ┛ ┗`).
 - **⠒ Sub-Pixel Braille**: High-density 2×4 dot Braille matrix interpolated via cubic **Catmull-Rom splines**.
 - **░ Shaded Area Fill**: Half-tone shading beneath curves that cleanly absorbs grid intersections.
-- **┼ Aligned Coordinate Grid**: Subtle coordinate grid aligned exactly to Y-axis ticks and width quarter-steps.
+- **┼ Aligned Coordinate Grid**: Subtle coordinate grid aligned exactly to Y-axis ticks and width quarter-steps, or to the time labels with `WithXAxisAt`.
 - **📈 Multi-Series Support**: Plot multiple named metrics simultaneously with dedicated styles and swatches.
 - **🏷️ Timeline Annotations**: Pin events, deploys, and alerts onto the sliding timeline with custom glyphs and vertical guidelines.
 - **📦 Live Legend Box**: Bordered legend overlay displaying swatches, names, and real-time values.
 - **⚖️ Bidirectional & RX/TX Traffic**: Grafana-style zero baseline rulings, inverted mirror series, auto-symmetric centering, and adaptive byte rate formatters.
 - **⌇ Gaps for Missing Points**: Push `math.NaN()` for a missing sample. `NaN` and `±Inf` draw as gaps, with no line, fill, or connecting stroke.
-- **└┴ Optional Time Axis**: `WithXAxis` adds an axis row and a label row under the plot, with labels from your own function of the point age.
+- **└┴ Optional Time Axis**: `WithXAxis` adds an axis row and a label row under the plot, with labels from your own function of the point age. `WithXAxisAt` puts labels only at the columns you choose, such as round hours.
 - **🫧 Charm Native**: Fully customizable with Lip Gloss styles and built for Bubble Tea event loops.
 
 ## 🚀 Quick Start

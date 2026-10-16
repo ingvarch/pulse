@@ -254,16 +254,22 @@ func TestXAxis_EqualLineWidths(t *testing.T) {
 		"ascii": clockLabels(clock(14, 39)),
 		"cjk":   func(age int) string { return fmt.Sprintf("%d分前", age) },
 	}
-	for name, label := range labels {
-		t.Run(name, func(t *testing.T) {
-			c := newXAxisChart(40, pulse.WithXAxis(label),
-				pulse.WithAxisStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#444b6a"))))
-			for _, line := range strings.Split(c.View(), "\n") {
-				if w := lipgloss.Width(line); w != 4+1+40 {
-					t.Fatalf("line %q has width %d, want %d", ansi.Strip(line), w, 45)
+	axes := map[string]func(func(int) string) pulse.Option{
+		"WithXAxis":   pulse.WithXAxis,
+		"WithXAxisAt": pulse.WithXAxisAt,
+	}
+	for axisName, axis := range axes {
+		for name, label := range labels {
+			t.Run(axisName+"/"+name, func(t *testing.T) {
+				c := newXAxisChart(40, axis(label),
+					pulse.WithAxisStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#444b6a"))))
+				for _, line := range strings.Split(c.View(), "\n") {
+					if w := lipgloss.Width(line); w != 4+1+40 {
+						t.Fatalf("line %q has width %d, want %d", ansi.Strip(line), w, 45)
+					}
 				}
-			}
-		})
+			})
+		}
 	}
 }
 
@@ -273,4 +279,216 @@ func TestXAxis_CustomRendererGetsAxisRows(t *testing.T) {
 	if got := ansi.Strip(c.View()); got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
+}
+
+// sixHourLabels labels the newest column "now" and each column that holds a time of day divisible by 6 hours.
+func sixHourLabels(newest time.Time, step time.Duration) func(int) string {
+	return func(age int) string {
+		if age == 0 {
+			return "now"
+		}
+		t := newest.Add(-time.Duration(age) * step)
+		if b := t.Truncate(6 * time.Hour); t.Sub(b) < step {
+			return b.Format("15:04")
+		}
+		return ""
+	}
+}
+
+func mapLabels(labels map[int]string) func(int) string {
+	return func(age int) string { return labels[age] }
+}
+
+// vGridRow is a plot row without data or a horizontal grid line, with vertical grid lines at cols.
+func vGridRow(w int, cols ...int) string {
+	row := []rune(strings.Repeat(" ", w))
+	for _, col := range cols {
+		row[col] = '│'
+	}
+	return "    │" + string(row)
+}
+
+func TestXAxisAt_RoundTimes(t *testing.T) {
+	c := newXAxisChart(48, pulse.WithXAxisAt(sixHourLabels(clock(15, 10), 30*time.Minute)))
+	assertAxisRows(t, c,
+		"    └─────┴───────────┴───────────┴───────────┴──────",
+		"        18:00       00:00       06:00       12:00 now")
+}
+
+func TestXAxisAt_Placement(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[int]string
+		axis   string
+		row    string
+	}{
+		{
+			"middle label is centered on its column",
+			map[int]string{12: "abcde"},
+			"    └" + strings.Repeat("─", 27) + "┴" + strings.Repeat("─", 12),
+			strings.Repeat(" ", 30) + "abcde" + strings.Repeat(" ", 10),
+		},
+		{
+			"edge labels align to the edges without a tick",
+			map[int]string{0: "now", 39: "start"},
+			"    └" + strings.Repeat("─", 40),
+			"     start" + strings.Repeat(" ", 32) + "now",
+		},
+		{
+			"label that runs past the left edge is dropped",
+			map[int]string{38: "abcde"},
+			"    └" + strings.Repeat("─", 40),
+			strings.Repeat(" ", 45),
+		},
+		{
+			"label that ends at the left edge fits",
+			map[int]string{37: "abcde"},
+			"    └──┴" + strings.Repeat("─", 37),
+			"     abcde" + strings.Repeat(" ", 35),
+		},
+		{
+			"label that runs past the right edge is dropped",
+			map[int]string{1: "abcde"},
+			"    └" + strings.Repeat("─", 40),
+			strings.Repeat(" ", 45),
+		},
+		{
+			"one space between labels is kept",
+			map[int]string{10: "abcde", 16: "fghij"},
+			"    └" + strings.Repeat("─", 23) + "┴─────┴" + strings.Repeat("─", 10),
+			strings.Repeat(" ", 26) + "fghij abcde" + strings.Repeat(" ", 8),
+		},
+		{
+			"touching label to the left is dropped",
+			map[int]string{10: "abcde", 15: "fghij"},
+			"    └" + strings.Repeat("─", 29) + "┴" + strings.Repeat("─", 10),
+			strings.Repeat(" ", 32) + "abcde" + strings.Repeat(" ", 8),
+		},
+		{
+			"right edge stays",
+			map[int]string{0: "now", 2: "abcde"},
+			"    └" + strings.Repeat("─", 40),
+			strings.Repeat(" ", 42) + "now",
+		},
+		{
+			"middle label wins over the left edge",
+			map[int]string{39: "start", 35: "abcde"},
+			"    └────┴" + strings.Repeat("─", 35),
+			"       abcde" + strings.Repeat(" ", 33),
+		},
+		{
+			"no candidates",
+			map[int]string{},
+			"    └" + strings.Repeat("─", 40),
+			strings.Repeat(" ", 45),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newXAxisChart(40, pulse.WithXAxisAt(mapLabels(tc.labels)))
+			assertAxisRows(t, c, tc.axis, tc.row)
+		})
+	}
+}
+
+func TestXAxisAt_NarrowWidths(t *testing.T) {
+	tests := []struct {
+		name   string
+		w      int
+		labels map[int]string
+		row    string
+	}{
+		{"w1 label at the only column", 1, map[int]string{0: "x"}, "     x"},
+		{"w2 left edge touches the right one", 2, map[int]string{0: "a", 1: "b"}, "      a"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newXAxisChart(tc.w, pulse.WithXAxisAt(mapLabels(tc.labels)))
+			assertAxisRows(t, c, "    └"+strings.Repeat("─", tc.w), tc.row)
+		})
+	}
+}
+
+func TestXAxisAt_GridFollowsTicks(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[int]string
+		cols   []int
+	}{
+		// "xyz" at age 2 touches "now" and is dropped; the edge labels "now" and "start" get no grid line.
+		{"placed middle labels", map[int]string{0: "now", 2: "xyz", 9: "abcde", 15: "fghij", 30: "klmno", 39: "start"}, []int{9, 24, 30}},
+		{"no candidates", map[int]string{}, nil},
+	}
+	for _, mode := range gapModes {
+		for _, tc := range tests {
+			t.Run(mode.name+"/"+tc.name, func(t *testing.T) {
+				c := newXAxisChart(40, pulse.WithMode(mode.mode), pulse.WithTicks(0, 100),
+					pulse.WithXAxisAt(mapLabels(tc.labels)))
+				lines := strings.Split(ansi.Strip(c.View()), "\n")
+				if want := vGridRow(40, tc.cols...); lines[1] != want {
+					t.Fatalf("plot row 1:\n got %q\nwant %q", lines[1], want)
+				}
+			})
+		}
+	}
+}
+
+func TestXAxis_GridStaysAtQuarters(t *testing.T) {
+	c := newXAxisChart(40, pulse.WithTicks(0, 100),
+		pulse.WithXAxis(mapLabels(map[int]string{0: "now", 19: "abcde"})))
+	lines := strings.Split(ansi.Strip(c.View()), "\n")
+	if want := vGridRow(40, 10, 20, 30); lines[1] != want {
+		t.Fatalf("plot row 1:\n got %q\nwant %q", lines[1], want)
+	}
+}
+
+func TestXAxisAt_AsksEveryColumnOnce(t *testing.T) {
+	for _, w := range []int{1, 2, 40} {
+		t.Run(fmt.Sprintf("w%d", w), func(t *testing.T) {
+			asked := map[int]int{}
+			c := newXAxisChart(w, pulse.WithXAxisAt(func(age int) string {
+				asked[age]++
+				return ""
+			}))
+			c.View()
+			if len(asked) != w {
+				t.Fatalf("asked ages %v, want 0..%d", asked, w-1)
+			}
+			for age := 0; age < w; age++ {
+				if asked[age] != 1 {
+					t.Fatalf("age %d asked %d times, want 1", age, asked[age])
+				}
+			}
+		})
+	}
+}
+
+func TestXAxisAt_SetXAxisAtNilTurnsOff(t *testing.T) {
+	c := newXAxisChart(40)
+	c.SetXAxisAt(sixHourLabels(clock(15, 10), 30*time.Minute))
+	if n := len(strings.Split(c.View(), "\n")); n != 7 {
+		t.Fatalf("axis on: %d lines, want 7", n)
+	}
+	c.SetXAxisAt(nil)
+	if got, want := c.View(), newXAxisChart(40).View(); got != want {
+		t.Fatalf("axis off differs from a chart that never had it:\n%s\n%s", got, want)
+	}
+}
+
+func TestXAxisAt_LastSetterWins(t *testing.T) {
+	label := sixHourLabels(clock(15, 10), 30*time.Minute)
+	t.Run("SetXAxis after WithXAxisAt", func(t *testing.T) {
+		c := newXAxisChart(48, pulse.WithXAxisAt(label))
+		c.SetXAxis(label)
+		if got, want := c.View(), newXAxisChart(48, pulse.WithXAxis(label)).View(); got != want {
+			t.Fatalf("got\n%s\nwant\n%s", got, want)
+		}
+	})
+	t.Run("SetXAxisAt after WithXAxis", func(t *testing.T) {
+		c := newXAxisChart(48, pulse.WithXAxis(label))
+		c.SetXAxisAt(label)
+		if got, want := c.View(), newXAxisChart(48, pulse.WithXAxisAt(label)).View(); got != want {
+			t.Fatalf("got\n%s\nwant\n%s", got, want)
+		}
+	})
 }

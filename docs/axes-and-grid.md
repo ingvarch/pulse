@@ -28,7 +28,7 @@ chart := pulse.New(60, 13,
 
 When `pulse.WithGrid(true)` is enabled:
 - **Horizontal lines**: Drawn as subtle `─` aligned precisely with each Y-axis label.
-- **Vertical lines**: Drawn at quarter intervals of chart width (`w / 4`, `2w / 4`, `3w / 4`).
+- **Vertical lines**: Drawn at quarter intervals of chart width (`w / 4`, `2w / 4`, `3w / 4`). With `WithXAxisAt`, they are drawn at the columns of the placed middle time labels instead.
 - **Intersections**: Rendered with `┼`.
 - **Faint styling**: Grid lines automatically inherit `axisStyle.Faint(true)` so they remain visually subtle beneath data curves.
 
@@ -73,6 +73,42 @@ Labels sit at the left edge, the right edge, and at the quarter columns (`w / 4`
 
 <p align="center">
   <img src="../assets/xaxis.png" alt="Time axis under a 7-day CPU chart with a gap" width="100%" />
+</p>
+
+## Labels at Chosen Columns (`WithXAxisAt`)
+
+`WithXAxis` puts labels at the edges and the quarter columns, so they show whatever time falls there, for example `12:45  18:33  00:37  06:41  now`. `pulse.WithXAxisAt(label)` draws the same two rows, but asks `label` for every column, ages 0 to `w-1`. A non-empty text proposes a label at that column. To get round times, return text only for the column that holds one:
+
+```go
+var newest time.Time        // time of the newest point
+step := 24 * time.Hour / 80 // 80 points cover 24 hours
+
+chart := pulse.New(80, 13,
+    pulse.WithRange(0, 100),
+    pulse.WithXAxisAt(func(age int) string {
+        if age == 0 {
+            return "now"
+        }
+        t := newest.Add(-time.Duration(age) * step)
+        // The last 6-hour mark on the clock of t's time zone; the column holds it if it falls in (t-step, t].
+        mark := time.Date(t.Year(), t.Month(), t.Day(), t.Hour()/6*6, 0, 0, 0, t.Location())
+        if t.Sub(mark) < step {
+            return mark.Format("15:04")
+        }
+        return ""
+    }),
+)
+```
+
+- Labels are aligned as with `WithXAxis`: the left edge label starts at column 0, the right edge label ends at the last column, and the others are centered on their column with a `┴` mark.
+- The right edge is placed first, then the other columns from right to left. A label that would run past an edge or touch one already placed is dropped, so when the candidates are too close, the newer ones stay. Pick a step that leaves room: a 5-character label needs 6 columns.
+- The vertical grid lines follow the placed middle labels instead of the quarters. The edge labels get no grid line, so with no middle labels there are no vertical grid lines.
+- `t.Truncate(6 * time.Hour)` rounds in UTC, not in the time zone of `t`. Build the mark from the wall clock, as above, so the labels read `18:00` and not `17:30` in a zone with a half-hour offset.
+- `label` runs `w` times on every `View()`, so keep it cheap.
+- `chart.SetXAxisAt(nil)` turns the axis off. `SetXAxis` and `SetXAxisAt` replace each other.
+
+<p align="center">
+  <img src="../assets/xaxis-at.png" alt="Time axis with labels every 6 hours under a 24-hour CPU chart" width="100%" />
 </p>
 
 ## Symmetric Y-Axis (`WithSymmetric`)

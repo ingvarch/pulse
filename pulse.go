@@ -35,6 +35,7 @@ type Model struct {
 	labelWidth     int
 	labelFormatter func(float64) string
 	xAxisLabel     func(age int) string
+	xAxisAt        bool
 
 	step   int
 	events []eventRecord
@@ -275,7 +276,11 @@ func (m *Model) Renderer() Renderer {
 
 // SetXAxis sets the X axis label function; nil turns the axis off.
 // See WithXAxis.
-func (m *Model) SetXAxis(label func(age int) string) { m.xAxisLabel = label }
+func (m *Model) SetXAxis(label func(age int) string) { m.xAxisLabel, m.xAxisAt = label, false }
+
+// SetXAxisAt sets the X axis label function asked for every column; nil turns the axis off.
+// See WithXAxisAt.
+func (m *Model) SetXAxisAt(label func(age int) string) { m.xAxisLabel, m.xAxisAt = label, label != nil }
 
 // Width returns the chart plot width in terminal cells.
 func (m *Model) Width() int { return m.w }
