@@ -36,7 +36,7 @@ fmt.Println(chart.Min(), chart.Max()) // 0 800
 - With `WithSymmetric(true)` the range is `[-a, +a]`, where `a` is the largest absolute value.
 - With no finite values, or with a flat line at 0, the range is `0..1` (`-1..1` when symmetric).
 - With `WithTicks`, auto range still sets the range. Only the ticks inside it get a label.
-- `Min()` and `Max()` return the range of the last `View`, and the initial range before the first `View`. Renderers draw against it, except on a [log scale](#logarithmic-scale).
+- `Min()` and `Max()` return the range of the last `View` or [`Sparkline`](sparklines.md#the-method) call, and the initial range before the first `View`. Renderers draw against it, except on a [log scale](#logarithmic-scale).
 - `WithRange` and `SetRange` turn auto range off. `WithAutoRange(true)` after `WithRange` turns it on again. `WithSymmetric` and `SetSymmetric` leave it as it is.
 - `SetAutoRange(false)` keeps the range of the last render. `AutoRange()` reports the state.
 - The label column gets wider when a longer label appears, for example when `750` becomes `1000`. To keep the chart width fixed, set `WithLabelWidth` to the widest label you expect.

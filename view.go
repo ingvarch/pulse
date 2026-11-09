@@ -71,15 +71,15 @@ func quarterCols(w int) [3]int {
 	return [3]int{w / 4, 2 * w / 4, 3 * w / 4}
 }
 
-// View renders the chart: Y-axis labels + axis border + plot area,
-// then the right axis line and its label column when WithRightAxis is set,
-// then the X axis and label rows when WithXAxis is set.
-func (m *Model) View() string {
-	names := make([]string, 0, len(m.order)+1)
+// plotSeries returns the series names (the default one first), their visible points negated as View
+// draws inverted series, which of them sit on the right axis and the left-axis points.
+// With auto range on, it refits the stored range to the left-axis points.
+func (m *Model) plotSeries() (names []string, seriesData [][]float64, onRight []bool, leftData [][]float64) {
+	names = make([]string, 0, len(m.order)+1)
 	names = append(names, "")
 	names = append(names, m.order...)
-	seriesData := make([][]float64, len(names))
-	onRight := make([]bool, len(names))
+	seriesData = make([][]float64, len(names))
+	onRight = make([]bool, len(names))
 	for idx, name := range names {
 		onRight[idx] = m.onRight(name)
 		if s, ok := m.series[name]; ok {
@@ -90,7 +90,7 @@ func (m *Model) View() string {
 			seriesData[idx] = data
 		}
 	}
-	leftData := withoutRight(seriesData, onRight)
+	leftData = withoutRight(seriesData, onRight)
 	if m.autoRange {
 		if m.logScale {
 			m.min, m.max = fitLogRange(leftData)
@@ -99,6 +99,14 @@ func (m *Model) View() string {
 		}
 		m.rangeMin, m.rangeMax = m.min, m.max
 	}
+	return names, seriesData, onRight, leftData
+}
+
+// View renders the chart: Y-axis labels + axis border + plot area,
+// then the right axis line and its label column when WithRightAxis is set,
+// then the X axis and label rows when WithXAxis is set.
+func (m *Model) View() string {
+	names, seriesData, onRight, leftData := m.plotSeries()
 	lo, hi := m.bounds()
 
 	ticks := m.gridTicks()
