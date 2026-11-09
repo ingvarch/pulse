@@ -2,6 +2,7 @@ package pulse_test
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -233,5 +234,37 @@ func TestLineChart_InvertedRangeNormalization(t *testing.T) {
 	m.SetRange(80, 20)
 	if m.Min() != 20 || m.Max() != 80 {
 		t.Fatalf("expected SetRange(80, 20) to normalize to (20, 80), got (%v, %v)", m.Min(), m.Max())
+	}
+}
+
+func TestLineChart_SetRangeIgnoresNonFiniteBounds(t *testing.T) {
+	bad := []struct {
+		name     string
+		min, max float64
+	}{
+		{"NaN min", math.NaN(), 50},
+		{"NaN max", 0, math.NaN()},
+		{"+Inf max", 0, math.Inf(1)},
+		{"-Inf min", math.Inf(-1), 50},
+	}
+	for _, mode := range []pulse.RenderMode{pulse.ModeLines, pulse.ModeBraille} {
+		for _, tt := range bad {
+			t.Run(fmt.Sprintf("%v/%s", mode, tt.name), func(t *testing.T) {
+				m := pulse.New(10, 5, pulse.WithMode(mode), pulse.WithRange(tt.min, tt.max))
+				if m.Min() != 0 || m.Max() != 100 {
+					t.Fatalf("WithRange(%v, %v): got range (%v, %v), want the default (0, 100)", tt.min, tt.max, m.Min(), m.Max())
+				}
+				m.SetRange(20, 80)
+				m.SetRange(tt.min, tt.max)
+				if m.Min() != 20 || m.Max() != 80 {
+					t.Fatalf("SetRange(%v, %v): got range (%v, %v), want the previous (20, 80)", tt.min, tt.max, m.Min(), m.Max())
+				}
+				m.Push(50)
+				m.Push(60)
+				if lines := strings.Split(m.View(), "\n"); len(lines) != 5 {
+					t.Fatalf("got %d lines, want 5", len(lines))
+				}
+			})
+		}
 	}
 }

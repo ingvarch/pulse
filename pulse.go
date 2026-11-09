@@ -142,7 +142,11 @@ func (m *Model) LenSeries(name string) int {
 }
 
 // SetRange dynamically sets the Y-axis range.
+// A call with a NaN or infinite bound is ignored and keeps the current range.
 func (m *Model) SetRange(min, max float64) {
+	if isGap(min) || isGap(max) {
+		return
+	}
 	if min > max {
 		min, max = max, min
 	}

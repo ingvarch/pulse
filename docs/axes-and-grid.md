@@ -10,6 +10,8 @@ chart := pulse.New(60, 10, pulse.WithRange(0, 100))
 
 The algorithm adapts to chart height, picking clean, human-friendly steps such as multiples of 1, 2, 5, 10, 20, 25, or 50.
 
+`WithRange` and `SetRange` ignore a call with a NaN or infinite bound and keep the current range, which is `0..100` on a new chart.
+
 ## Custom Ticks
 
 For fixed ranges (e.g. CPU or RAM percent `0%..100%`), you can specify explicit quarter-step ticks:
