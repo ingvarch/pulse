@@ -1,6 +1,7 @@
 package pulse_test
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -288,6 +289,47 @@ func TestLineChart_NonFiniteTickIsSkipped(t *testing.T) {
 			rows := strings.Split(ansi.Strip(lc.View()), "\n")
 			if strings.Contains(rows[0], "NaN") || strings.Contains(rows[0], "─") {
 				t.Fatalf("row 0 must have no label and no grid line, got %q", rows[0])
+			}
+		})
+	}
+}
+
+// longDataChart is a custom Chart whose SeriesData returns more points than its width.
+type longDataChart struct {
+	*pulse.Model
+	data []float64
+}
+
+func (c longDataChart) SeriesData(string) []float64 { return c.data }
+
+// longDataRenderer renders through inner with the chart's data replaced by data.
+type longDataRenderer struct {
+	inner pulse.Renderer
+	data  []float64
+}
+
+func (r longDataRenderer) Render(c pulse.Chart, ctx pulse.RenderContext) string {
+	ctx.SeriesData = nil
+	return r.inner.Render(longDataChart{c.(*pulse.Model), r.data}, ctx)
+}
+
+func TestRenderer_TrimsDataLongerThanWidth(t *testing.T) {
+	const w = 10
+	tail := make([]float64, w)
+	for i := range tail {
+		tail[i] = 50
+	}
+	long := append([]float64{100, 100, 100, 100, 100}, tail...)
+	for _, inner := range []pulse.Renderer{pulse.LinesRenderer{}, pulse.BrailleRenderer{}} {
+		t.Run(fmt.Sprintf("%T", inner), func(t *testing.T) {
+			want := pulse.New(w, 5, pulse.WithRange(0, 100), pulse.WithRenderer(longDataRenderer{inner, tail}))
+			got := pulse.New(w, 5, pulse.WithRange(0, 100), pulse.WithRenderer(longDataRenderer{inner, long}))
+			for range w {
+				want.Push(0)
+				got.Push(0)
+			}
+			if g, wv := ansi.Strip(got.View()), ansi.Strip(want.View()); g != wv {
+				t.Fatalf("%d points must draw as the last %d:\ngot:\n%s\nwant:\n%s", len(long), w, g, wv)
 			}
 		})
 	}

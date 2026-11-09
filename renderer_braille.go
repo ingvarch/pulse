@@ -158,6 +158,10 @@ func plotSeriesBraille(c Chart, grid [][]uint8, owner [][]int, isNegGrid [][]boo
 	if window < 1 {
 		window = 1
 	}
+	if n > window {
+		data = data[n-window:]
+		n = window
+	}
 	dw := w*2 - 1
 	if dw < 0 {
 		dw = 0
