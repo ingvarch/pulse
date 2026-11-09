@@ -1,10 +1,10 @@
 # Timeline Annotations & Event Markers
 
-**Pulse** is the first Go terminal charting library to feature **first-class Timeline Annotations & Event Markers**, bringing a core capability from cloud observability platforms like **Grafana** and **Datadog** straight into your terminal user interface.
+Pulse pins events, such as deploys and alerts, to points on the chart, the way annotations work in Grafana and Datadog.
 
 ---
 
-## 🎯 Why Timeline Annotations?
+## Why Timeline Annotations?
 
 When monitoring metrics in real time (e.g. CPU spikes, memory leaks, error rate surges), raw numbers only tell you *that* something happened—not *why* it happened.
 
@@ -23,7 +23,7 @@ Pulse enables you to pin events directly onto the time-series grid with vertical
 
 ---
 
-## 📦 Core Types & API
+## Core Types & API
 
 ### `Event`
 
@@ -72,7 +72,7 @@ pulse.New(width, height,
 
 ---
 
-## 🛠️ How It Works: The Sliding Window Lifecycle
+## How It Works: The Sliding Window Lifecycle
 
 Pulse charts maintain an internal time step (`m.step`). Every time you push a data point (`chart.Push(v)` or `chart.PushSeries(name, v)`), the timeline advances by one tick:
 
@@ -90,7 +90,7 @@ Pulse charts maintain an internal time step (`m.step`). Every time you push a da
 
 ---
 
-## 💡 Practical Examples
+## Practical Examples
 
 ### 1. Static Report / CLI Incident Summary
 
@@ -157,7 +157,7 @@ import (
 	"fmt"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/ingvarch/pulse"
 )
@@ -177,7 +177,7 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -203,20 +203,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
 	chartView := m.chart.View()
 	eventsCard := m.chart.EventsBox()
 
 	if eventsCard != "" {
-		return lipgloss.JoinVertical(lipgloss.Left, chartView, eventsCard)
+		return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, chartView, eventsCard))
 	}
-	return chartView
+	return tea.NewView(chartView)
 }
 ```
 
 ---
 
-## 🎨 Best Practices & UI Tips
+## Best Practices & UI Tips
 
 ### 1. Choosing Marker Glyphs
 

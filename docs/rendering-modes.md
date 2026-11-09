@@ -13,7 +13,7 @@ Pulse supports two distinct rendering engines:
 
 ### Rounded Curves (Line Width 1)
 
-When `pulse.WithLineWidth(1)` (default) and smoothing are enabled, turns use rounded arcs:
+With `pulse.WithLineWidth(1)` and smoothing on (the default), turns use rounded arcs:
 
 | Character | Name | Use Case |
 | --------- | ---- | -------- |
@@ -30,11 +30,10 @@ When `pulse.WithLineWidth(1)` (default) and smoothing are enabled, turns use rou
 
 ### Bold Curves (Line Width 2)
 
-For a bolder, punchy aesthetic:
+Line width 2 is the default. It uses heavy box-drawing glyphs: `┏`, `┓`, `┗`, `┛`, `━`, `┃`. To switch back from width 1 at runtime:
 ```go
 chart.SetLineWidth(2)
 ```
-Uses heavy box-drawing glyphs: `┏`, `┓`, `┗`, `┛`, `━`, `┃`.
 
 <p align="center">
   <img src="../assets/styled.png" alt="Bold Curves and Lip Gloss Container" width="100%" />
@@ -42,9 +41,8 @@ Uses heavy box-drawing glyphs: `┏`, `┓`, `┗`, `┛`, `━`, `┃`.
 
 ### Shaded & Tinted Area Fill (`░`)
 
-Enable area fill under curves with:
+Area fill is on by default; `pulse.WithFill(false)` turns it off. The other fill options:
 ```go
-pulse.WithFill(true)
 pulse.WithTintedFill(true) // seamlessly bridges the gap between line curves and fill
 pulse.WithSolidFill(false) // false: stippled "░", true: solid background surface
 pulse.WithTintColor(color) // optional custom tint color; defaults to Tokyo Night slate #1f2335

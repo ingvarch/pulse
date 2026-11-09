@@ -26,7 +26,7 @@ chart := pulse.New(60, 13,
 
 ## Grafana-Style Coordinate Grid
 
-When `pulse.WithGrid(true)` is enabled:
+The grid is on by default; `pulse.WithGrid(false)` turns it off. With the grid on:
 - **Horizontal lines**: Drawn as subtle `─` aligned precisely with each Y-axis label.
 - **Vertical lines**: Drawn at quarter intervals of chart width (`w / 4`, `2w / 4`, `3w / 4`). With `WithXAxisAt`, they are drawn at the columns of the placed middle time labels instead.
 - **Intersections**: Rendered with `┼`.

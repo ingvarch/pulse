@@ -14,7 +14,7 @@ This capability is essential for modern terminal dashboards monitoring:
 
 ---
 
-## 🎯 The Problem with Bottom-Anchored Fill
+## The Problem with Bottom-Anchored Fill
 
 In traditional terminal charting libraries, area fill (`░`) is unconditionally anchored to the bottom edge of the plot. When visualizing metrics that cross zero:
 1. Negative values are filled down to the minimum Y-bound, making large negative spikes look visually inverted.
@@ -25,7 +25,7 @@ Pulse resolves this by introducing **Bidirectional Zero-Crossing Fill**, where p
 
 ---
 
-## 📐 Anatomy of the Zero Baseline
+## Anatomy of the Zero Baseline
 
 When `pulse.WithZeroBaseline(true)` is enabled:
 
@@ -41,7 +41,7 @@ When `pulse.WithZeroBaseline(true)` is enabled:
 
 ---
 
-## 📦 API & Configuration Options
+## API & Configuration Options
 
 ### Functional Options
 
@@ -71,7 +71,7 @@ When `pulse.WithZeroBaseline(true)` is enabled:
 
 ---
 
-## ⚖️ Auto-Symmetric Range & Centered Zero Baseline
+## Auto-Symmetric Range & Centered Zero Baseline
 
 In mirror charts like RX/TX network traffic, Read/Write disk IO, or Long/Short positions, you typically want the zero baseline to be anchored **directly in the center** of the plot area, with equal vertical headroom for both directions.
 
@@ -84,7 +84,7 @@ Whenever you push data or adjust limits with `chart.SetRange(min, max)`, Pulse e
 
 ---
 
-## 📊 Adaptive Byte & Throughput Rate Formatting (`scale`)
+## Adaptive Byte & Throughput Rate Formatting (`scale`)
 
 Pulse includes high-performance formatters for byte counts and transfer rates in the `github.com/ingvarch/pulse/scale` package:
 
@@ -110,7 +110,7 @@ pulse.WithLabelFormatter(scale.BytesRateFormatter(true))
 
 ---
 
-## ✨ Rounded Corners & Smooth Curves
+## Rounded Corners & Smooth Curves
 
 Pulse supports smooth continuous box-drawing curves across both positive and negative coordinates:
 
@@ -128,7 +128,7 @@ Pulse supports smooth continuous box-drawing curves across both positive and neg
 
 ---
 
-## 💡 Practical Examples
+## Practical Examples
 
 ### 1. Network RX / TX Traffic (Grafana Pattern)
 
@@ -257,7 +257,7 @@ chart := pulse.New(60, 10,
 
 ---
 
-## 🎮 Interactive Demo
+## Interactive Demo
 
 An interactive Bubble Tea demo featuring live network traffic with runtime mode toggles is included in [`examples/rxtxdemo`](../examples/rxtxdemo):
 
