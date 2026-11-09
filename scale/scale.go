@@ -246,13 +246,15 @@ func logSteps(min, max float64, first, last int, mult ...float64) []float64 {
 	return out
 }
 
-// decadeOf returns floor(log10(v)), corrected for rounding in Log10.
+// decadeOf returns floor(log10(v)). Log10 is only a first guess: it can be off by many decades
+// for subnormal v on amd64, where math.Log reads the exponent straight from the bits.
 func decadeOf(v float64) int {
 	e := int(math.Floor(math.Log10(v)))
-	if math.Pow10(e+1) <= v {
-		e++
-	} else if math.Pow10(e) > v {
+	for math.Pow10(e) > v {
 		e--
+	}
+	for math.Pow10(e+1) <= v {
+		e++
 	}
 	return e
 }
