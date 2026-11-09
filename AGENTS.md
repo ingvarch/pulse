@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Pulse is a Go library that draws live line charts in the terminal for Lip Gloss and Bubble Tea apps. The root package `pulse` holds the chart model and its two renderers, `scale/` the tick and byte-rate formatters, `theme/` the Tokyo Night preset, `examples/` the Bubble Tea demos and `cmd/gen-shots/` the screenshot generator. A change that users can see updates the guide in `docs/` that describes it, and its screenshot when the picture changes.
+Pulse is a Go library that draws live line charts in the terminal for Lip Gloss and Bubble Tea apps. The root package `pulse` holds the chart model and its two renderers, `scale/` the tick and byte-rate formatters, `donut/` the ring and frame charts, `theme/` the Tokyo Night preset, `examples/` the Bubble Tea demos and `cmd/gen-shots/` the screenshot generator. A change that users can see updates the guide in `docs/` that describes it, and its screenshot when the picture changes.
 
 - [docs/development.md](docs/development.md): read before running checks or demos, regenerating screenshots, tagging a release, or looking for the file that holds a feature. It has the CI checks, the demo keys, the screenshot command and its traps, the release steps and the file map.
 - [CONTRIBUTING.md](CONTRIBUTING.md): read before starting a change, a commit or a pull request. It has the branch names, the doc comment rule for exported names, the commit style with the `pulse` scope and `Closes #N`.
@@ -12,6 +12,7 @@ Pulse is a Go library that draws live line charts in the terminal for Lip Gloss 
 - [docs/thresholds.md](docs/thresholds.md): read before changing `threshold.go`: threshold lines, labels and colors, and how `view.go` and `renderer*.go` use them.
 - [docs/cursor-and-scrolling.md](docs/cursor-and-scrolling.md): read before changing `cursor.go` or how the window follows the offset: `SetCursor`, `SetOffset`, `CursorValues`, `CursorBox`.
 - [docs/sparklines.md](docs/sparklines.md): read before changing `sparkline.go`: `Sparkline`, `SparklineBraille`, `(*Model).Sparkline` and the range the method uses.
+- [docs/donut.md](docs/donut.md): read before changing `donut/`: sections, the ring and frame shapes, glyph sets, the center text and the legend.
 - [docs/bubbletea.md](docs/bubbletea.md): read before changing `examples/` or how the chart is embedded in a Bubble Tea model.
 
 ## Rules

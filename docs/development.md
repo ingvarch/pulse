@@ -37,6 +37,7 @@ Each demo is a Bubble Tea program in the `examples/` module. Run them from the r
 | `go -C examples run ./multidemo` | CPU, MEM and NET series | `t` line width, `m` lines or braille |
 | `go -C examples run ./rxtxdemo` | Network RX and TX around a zero baseline | `w` line width, `s` smoothing, `m` lines or braille, `f` fill, `t` tinted fill, `z` zero baseline, `y` symmetric range |
 | `go -C examples run ./cpulive` | CPU and RAM of this machine, read with gopsutil | `t` line width, `m` lines or braille |
+| `go -C examples run ./donut` | Pods by phase as a ring and a frame, changing every second | `g` cycles braille, octants and half blocks |
 | `go -C examples run ./cpudemo` | Prints one chart and exits | none |
 
 ## Screenshots
@@ -47,10 +48,10 @@ The PNG files in `assets/` come from `cmd/gen-shots`, which prints one chart per
 go run ./cmd/gen-shots -mode xaxis | env PATH=/usr/bin:/bin "$(command -v freeze)" -o assets/xaxis.png
 ```
 
-- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds`, `logscale`, `rightaxis`, `cursor` and `sparkline`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
+- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds`, `logscale`, `rightaxis`, `cursor`, `sparkline` and `donut`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
 - The data is generated with fixed random seeds, so a mode draws the same chart on every run.
 - `env PATH=/usr/bin:/bin` hides `rsvg-convert` from freeze. When librsvg is installed, freeze converts the image with `rsvg-convert`, which ignores freeze's embedded monospace font and draws the chart in a proportional font.
-- The embedded font of freeze has no braille glyphs, so the `braille` and `sparkline` modes draw empty boxes with the command above. For these two modes install a monospace font with the Braille block (for example JetBrainsMono Nerd Font Mono) and run freeze without the `PATH` override: `go run ./cmd/gen-shots -mode sparkline | freeze -o assets/sparkline.png --font.family "JetBrainsMono Nerd Font Mono"`. Then open the PNG and check the dots.
+- The embedded font of freeze has no braille glyphs, so the `braille`, `sparkline` and `donut` modes draw empty boxes with the command above. For these modes install a monospace font with the Braille block (for example JetBrainsMono Nerd Font Mono) and run freeze without the `PATH` override: `go run ./cmd/gen-shots -mode sparkline | freeze -o assets/sparkline.png --font.family "JetBrainsMono Nerd Font Mono"`. Then open the PNG and check the dots.
 - `freeze --execute` hangs in a non-interactive shell; pipe the output in instead.
 - For a new image, add a mode to `cmd/gen-shots/main.go`.
 
@@ -86,6 +87,7 @@ git push origin v0.8.0
 | `legend.go` | `Legend`, `LegendBox` |
 | `xaxis.go` | The time axis for `WithXAxis` and `WithXAxisAt` |
 | `scale/` | `NiceTicks`, `NiceRange`, `LogTicks`, `LogRange`, tick and byte-rate formatters |
+| `donut/` | The donut chart: `Model`, `Section`, glyph sets, the ring and frame geometry |
 | `theme/` | The Tokyo Night preset and value colors |
 | `examples/` | The demos, a separate module with its own `go.mod` |
 | `cmd/gen-shots/` | The screenshot generator |

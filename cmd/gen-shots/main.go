@@ -10,12 +10,13 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/ingvarch/pulse"
+	"github.com/ingvarch/pulse/donut"
 	"github.com/ingvarch/pulse/scale"
 	"github.com/ingvarch/pulse/theme"
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis | cursor | sparkline")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis | cursor | sparkline | donut")
 	flag.Parse()
 
 	switch *mode {
@@ -51,6 +52,8 @@ func main() {
 		renderCursor()
 	case "sparkline":
 		renderSparkline()
+	case "donut":
+		renderDonut()
 	}
 }
 
@@ -675,6 +678,27 @@ func renderSparkline() {
 		BorderForeground(lipgloss.Color("#3b4261")).
 		Padding(1, 2).
 		Render(strings.Join(rows, "\n"))
+
+	fmt.Println(box)
+}
+
+func renderDonut() {
+	sections := []donut.Section{
+		{Name: "Running", Value: 52, Style: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(0)))},
+		{Name: "Pending", Value: 8, Style: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(4)))},
+		{Name: "Failed", Value: 4, Style: lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(5)))},
+	}
+	ring := donut.New(12, donut.WithCenterLabel("Pods"))
+	frame := donut.New(12, donut.WithGlyphs(donut.HalfBlocks), donut.WithFrame(40, 12, 4, 8))
+	ring.SetSections(sections...)
+	frame.SetSections(sections...)
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top, ring.View(), "    ", frame.View())
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(body + "\n\n" + ring.Legend())
 
 	fmt.Println(box)
 }
