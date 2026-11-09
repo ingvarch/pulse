@@ -69,7 +69,7 @@ func (m model) View() tea.View {
 
 ## Resizing
 
-Terminal size changes arrive as `tea.WindowSizeMsg`. Call `SetSize` with the plot size: the window width minus the label column and the axis, and the height minus the lines you draw around the chart. The data stays in the chart, so you do not create a new one.
+Terminal size changes arrive as `tea.WindowSizeMsg`. Call `SetSize` with the plot size: the window width minus the label column and the axis (and the right axis line and its label column, with `WithRightAxis`), and the height minus the lines you draw around the chart. The data stays in the chart, so you do not create a new one.
 
 Create the chart with `pulse.WithHistory(n)` to keep points that a narrow window hides. When the terminal gets wider, the chart shows them again. Without it, the new columns on the left stay empty until new points arrive. See [History and Resizing](getting-started.md#history-and-resizing).
 

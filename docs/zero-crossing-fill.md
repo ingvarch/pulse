@@ -14,7 +14,9 @@ This capability is essential for modern terminal dashboards monitoring:
 
 ---
 
-The zero baseline, the symmetric range, inverted series and negative styles are ignored on a [log scale](axes-and-grid.md#logarithmic-scale).
+The zero baseline, the symmetric range, inverted series and negative styles are ignored on a [log scale](axes-and-grid.md#logarithmic-scale). An inverted series on the [right axis](axes-and-grid.md#right-axis) is still negated.
+
+A series on the [right axis](axes-and-grid.md#right-axis) gets no negative style. Its fill still goes to the zero baseline.
 
 ## The Problem with Bottom-Anchored Fill
 

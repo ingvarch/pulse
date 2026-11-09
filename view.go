@@ -3,6 +3,7 @@ package pulse
 import (
 	"math"
 	"slices"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 
@@ -49,32 +50,52 @@ func (m *Model) formatValue(v float64) string {
 	return scale.FormatTick(v)
 }
 
+// rowLabels labels the ticks inside lo..hi by their row. When two ticks share a row, the later one in ticks wins.
+func rowLabels(ticks []float64, lo, hi float64, rowOf func(float64) int, format func(float64) string) map[int]string {
+	labels := map[int]string{}
+	for i := len(ticks) - 1; i >= 0; i-- {
+		t := ticks[i]
+		if isGap(t) || t < lo || t > hi {
+			continue
+		}
+		row := rowOf(t)
+		if _, taken := labels[row]; !taken {
+			labels[row] = format(t)
+		}
+	}
+	return labels
+}
+
 // quarterCols returns the columns at 1/4, 2/4 and 3/4 of width w.
 func quarterCols(w int) [3]int {
 	return [3]int{w / 4, 2 * w / 4, 3 * w / 4}
 }
 
 // View renders the chart: Y-axis labels + axis border + plot area,
+// then the right axis line and its label column when WithRightAxis is set,
 // then the X axis and label rows when WithXAxis is set.
 func (m *Model) View() string {
 	names := make([]string, 0, len(m.order)+1)
 	names = append(names, "")
 	names = append(names, m.order...)
 	seriesData := make([][]float64, len(names))
+	onRight := make([]bool, len(names))
 	for idx, name := range names {
+		onRight[idx] = m.onRight(name)
 		if s, ok := m.series[name]; ok {
 			data := m.window(s)
-			if !m.logScale && (s.inverted || (name == "" && m.inverted)) {
+			if (!m.logScale || onRight[idx]) && (s.inverted || (name == "" && m.inverted)) {
 				data = negated(data)
 			}
 			seriesData[idx] = data
 		}
 	}
+	leftData := withoutRight(seriesData, onRight)
 	if m.autoRange {
 		if m.logScale {
-			m.min, m.max = fitLogRange(seriesData)
+			m.min, m.max = fitLogRange(leftData)
 		} else {
-			m.min, m.max = m.fitRange(seriesData)
+			m.min, m.max = m.fitRange(leftData)
 		}
 		m.rangeMin, m.rangeMax = m.min, m.max
 	}
@@ -95,17 +116,7 @@ func (m *Model) View() string {
 		}
 	}
 
-	rowLabel := map[int]string{}
-	for i := len(ticks) - 1; i >= 0; i-- {
-		t := ticks[i]
-		if isGap(t) || t < lo || t > hi {
-			continue
-		}
-		row := m.tickRow(t)
-		if _, taken := rowLabel[row]; !taken {
-			rowLabel[row] = m.formatValue(t)
-		}
-	}
+	rowLabel := rowLabels(ticks, lo, hi, m.tickRow, m.formatValue)
 
 	labelWidth := m.labelWidth
 	if labelWidth <= 0 {
@@ -140,9 +151,11 @@ func (m *Model) View() string {
 	}
 
 	var chart Chart = m
+	plot := leftData
 	if m.logScale {
-		seriesData, chart = m.toLogPlot(names, seriesData)
+		plot, chart = m.toLogPlot(names, leftData)
 	}
+	chart = m.toRightPlot(names, onRight, seriesData, plot, chart)
 
 	styles := make([]lipgloss.Style, len(names))
 	negativeStyles := make([]lipgloss.Style, len(names))
@@ -164,7 +177,8 @@ func (m *Model) View() string {
 		Styles:         styles,
 		NegativeStyles: negativeStyles,
 		HasNegStyles:   hasNegStyles,
-		SeriesData:     seriesData,
+		SeriesData:     plot,
+		RightAxis:      onRight,
 		GridStyle:      gridStyle,
 		ZeroRow:        zeroRow,
 	}
@@ -176,11 +190,18 @@ func (m *Model) View() string {
 		r = LinesRenderer{}
 	}
 	out := r.Render(chart, ctx)
+	corner, pad := "", ""
+	if m.hasRightAxis {
+		labels, width := m.rightRowLabels()
+		out = m.appendRightAxis(out, labels, width, zeroRow)
+		corner = m.axisStyle.Render("┘") + strings.Repeat(" ", width)
+		pad = strings.Repeat(" ", 1+width)
+	}
 	if m.xAxisLabel == nil {
 		return out
 	}
 	axis, labels := m.xAxisRows(labelWidth, placed)
-	return out + "\n" + axis + "\n" + labels
+	return out + "\n" + axis + corner + "\n" + labels + pad
 }
 
 // String implements fmt.Stringer, returning the rendered chart View().

@@ -168,6 +168,8 @@ if val, ok := chart.Last("cpu"); ok {
 }
 ```
 
+A series on the [right axis](axes-and-grid.md#right-axis) gets ` →` after its name in both legends.
+
 ## Dynamic Settings
 
 All styling and rendering options can be modified dynamically at runtime:
@@ -179,6 +181,8 @@ chart.SetAutoRange(true)       // fit the Y range to the visible data
 chart.SetLogScale(true)        // map values to rows by log10, see axes-and-grid.md
 chart.SetThresholds(t...)      // limit lines and labels, see thresholds.md
 chart.SetThresholdColors(true) // color series by the thresholds
+chart.SetRightAxis(a)          // second Y axis on the right, see axes-and-grid.md
+chart.SetSeriesRightAxis(n, true) // plot a series against the right axis
 chart.SetXAxis(label)          // time labels under the plot (View adds 2 lines)
 chart.SetXAxisAt(label)        // time labels at the columns you choose
 chart.SetFill(false)           // toggle shaded area fill
