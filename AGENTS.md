@@ -11,6 +11,7 @@ Pulse is a Go library that draws live line charts in the terminal for Lip Gloss 
 - [docs/timeline-events.md](docs/timeline-events.md): read before changing `event.go`: event placement, guidelines, pruning and `EventsBox`.
 - [docs/thresholds.md](docs/thresholds.md): read before changing `threshold.go`: threshold lines, labels and colors, and how `view.go` and `renderer*.go` use them.
 - [docs/cursor-and-scrolling.md](docs/cursor-and-scrolling.md): read before changing `cursor.go` or how the window follows the offset: `SetCursor`, `SetOffset`, `CursorValues`, `CursorBox`.
+- [docs/sparklines.md](docs/sparklines.md): read before changing `sparkline.go`: `Sparkline`, `SparklineBraille`, `(*Model).Sparkline` and the range the method uses.
 - [docs/bubbletea.md](docs/bubbletea.md): read before changing `examples/` or how the chart is embedded in a Bubble Tea model.
 
 ## Rules

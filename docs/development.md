@@ -47,9 +47,10 @@ The PNG files in `assets/` come from `cmd/gen-shots`, which prints one chart per
 go run ./cmd/gen-shots -mode xaxis | env PATH=/usr/bin:/bin "$(command -v freeze)" -o assets/xaxis.png
 ```
 
-- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds`, `logscale`, `rightaxis` and `cursor`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
+- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds`, `logscale`, `rightaxis`, `cursor` and `sparkline`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
 - The data is generated with fixed random seeds, so a mode draws the same chart on every run.
 - `env PATH=/usr/bin:/bin` hides `rsvg-convert` from freeze. When librsvg is installed, freeze converts the image with `rsvg-convert`, which ignores freeze's embedded monospace font and draws the chart in a proportional font.
+- The embedded font of freeze has no braille glyphs, so the `braille` and `sparkline` modes draw empty boxes with the command above. For these two modes install a monospace font with the Braille block (for example JetBrainsMono Nerd Font Mono) and run freeze without the `PATH` override: `go run ./cmd/gen-shots -mode sparkline | freeze -o assets/sparkline.png --font.family "JetBrainsMono Nerd Font Mono"`. Then open the PNG and check the dots.
 - `freeze --execute` hangs in a non-interactive shell; pipe the output in instead.
 - For a new image, add a mode to `cmd/gen-shots/main.go`.
 
@@ -80,6 +81,7 @@ git push origin v0.8.0
 | `rightaxis.go` | `Axis`, `WithRightAxis`, `SetSeriesRightAxis`, and the mapping of right-axis series into the plot |
 | `threshold.go` | `Threshold`, `SetThresholds`, threshold lines and row styles |
 | `cursor.go` | `SetCursor`, `SetOffset`, `CursorValues`, `CursorBox` |
+| `sparkline.go` | `Sparkline`, `SparklineBraille` and `(*Model).Sparkline` |
 | `event.go` | Timeline events, `EventsBox` |
 | `legend.go` | `Legend`, `LegendBox` |
 | `xaxis.go` | The time axis for `WithXAxis` and `WithXAxisAt` |

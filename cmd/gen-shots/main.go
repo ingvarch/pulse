@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -14,7 +15,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis | cursor")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis | cursor | sparkline")
 	flag.Parse()
 
 	switch *mode {
@@ -48,6 +49,8 @@ func main() {
 		renderRightAxis()
 	case "cursor":
 		renderCursor()
+	case "sparkline":
+		renderSparkline()
 	}
 }
 
@@ -631,6 +634,47 @@ func renderCursor() {
 		BorderForeground(lipgloss.Color("#3b4261")).
 		Padding(1, 2).
 		Render(content)
+
+	fmt.Println(box)
+}
+
+func renderSparkline() {
+	const points = 24
+	nodes := []struct {
+		name       string
+		base, wave float64
+		color      string
+	}{
+		{"node-1", 40, 28, theme.SeriesColor(0)},
+		{"node-2", 62, 25, theme.SeriesColor(1)},
+		{"node-3", 80, 14, theme.SeriesColor(2)},
+	}
+	rng := rand.New(rand.NewSource(7))
+
+	head := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c0caf5"))
+	text := lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6"))
+	rows := []string{head.Render(fmt.Sprintf("%-8s %5s  %-*s  %s", "NODE", "CPU", points, "BLOCKS", "BRAILLE"))}
+	for _, n := range nodes {
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color(n.color))
+		lc := pulse.New(points, 1, pulse.WithRange(0, 100), pulse.WithSeriesStyle("cpu", style))
+		for i := 0; i < points; i++ {
+			v := n.base + n.wave*math.Sin(float64(i)*0.45) + (rng.Float64()-0.5)*8
+			lc.PushSeries("cpu", math.Max(0, math.Min(100, v)))
+		}
+		last, _ := lc.Last("cpu")
+		rows = append(rows, fmt.Sprintf("%s %s  %s  %s",
+			text.Render(fmt.Sprintf("%-8s", n.name)),
+			style.Render(fmt.Sprintf("%4.0f%%", last)),
+			lc.Sparkline("cpu"),
+			style.Render(pulse.SparklineBraille(lc.SeriesData("cpu"), lc.Min(), lc.Max())),
+		))
+	}
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(strings.Join(rows, "\n"))
 
 	fmt.Println(box)
 }
