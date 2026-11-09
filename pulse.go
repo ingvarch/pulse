@@ -13,6 +13,7 @@ var _ Chart = (*Model)(nil)
 // Model is a streaming terminal line chart.
 type Model struct {
 	w, h     int
+	history  int
 	min, max float64
 
 	series map[string]*series
@@ -110,7 +111,8 @@ func (m *Model) getOrCreate(name string) *series {
 	return s
 }
 
-// Push adds a data point to the default series. Maintains a sliding window of width w.
+// Push adds a data point to the default series. The chart shows the last w points
+// and keeps up to max(history, w) of them.
 // NaN, +Inf and -Inf are kept as given and drawn as gaps.
 func (m *Model) Push(v float64) {
 	m.PushSeries("", v)
@@ -121,13 +123,49 @@ func (m *Model) Push(v float64) {
 func (m *Model) PushSeries(name string, v float64) {
 	s := m.getOrCreate(name)
 	s.data = append(s.data, v)
-	if len(s.data) > m.w {
-		s.data = s.data[len(s.data)-m.w:]
-	}
+	s.data = lastN(s.data, m.capacity())
 	if len(m.order) == 0 || name == m.order[0] || name == "" {
 		m.step++
+		m.pruneEvents()
 	}
 }
+
+// SetSize changes the plot size and clamps w and h to at least 1, as New does.
+// Points stay in the history: a wider chart shows older points again.
+// A smaller capacity drops the oldest points.
+func (m *Model) SetSize(w, h int) {
+	m.w, m.h = max(w, 1), max(h, 1)
+	m.trim()
+}
+
+// SetHistory keeps up to n points per series, and never fewer than the plot width.
+// A negative n counts as 0.
+func (m *Model) SetHistory(n int) {
+	m.history = max(n, 0)
+	m.trim()
+}
+
+// capacity returns how many points each series keeps.
+func (m *Model) capacity() int { return max(m.history, m.w) }
+
+// trim drops the points and events that no longer fit in the capacity.
+func (m *Model) trim() {
+	m.pruneEvents()
+	for _, s := range m.series {
+		s.data = lastN(s.data, m.capacity())
+	}
+}
+
+// lastN returns the last n elements of data, or all of it when it is shorter.
+func lastN(data []float64, n int) []float64 {
+	if len(data) > n {
+		return data[len(data)-n:]
+	}
+	return data
+}
+
+// window returns the points of s inside the visible window.
+func (m *Model) window(s *series) []float64 { return lastN(s.data, m.w) }
 
 // Len returns the number of points in the default series within the window.
 func (m *Model) Len() int { return m.LenSeries("") }
@@ -138,7 +176,7 @@ func (m *Model) LenSeries(name string) int {
 	if !ok {
 		return 0
 	}
-	return len(s.data)
+	return len(m.window(s))
 }
 
 // SetRange dynamically sets the Y-axis range.
@@ -330,16 +368,14 @@ func (m *Model) SeriesNames() []string {
 	return out
 }
 
-// SeriesData returns a copy of data points for a series.
+// SeriesData returns a copy of the points of a series in the visible window (the last Width() points).
 // Missing points are returned raw (NaN, +Inf, -Inf), so custom renderers see them.
 func (m *Model) SeriesData(name string) []float64 {
 	s, ok := m.series[name]
 	if !ok {
 		return nil
 	}
-	out := make([]float64, len(s.data))
-	copy(out, s.data)
-	return out
+	return slices.Clone(m.window(s))
 }
 
 // SeriesStyle returns the style for a named series, or default line style.
@@ -350,16 +386,17 @@ func (m *Model) SeriesStyle(name string) lipgloss.Style {
 	return m.lineStyle
 }
 
-// Last returns the most recent finite value of a named series.
+// Last returns the most recent finite value of a named series in the visible window.
 // Trailing gaps (NaN, +Inf, -Inf) are skipped.
 func (m *Model) Last(name string) (float64, bool) {
 	s, ok := m.series[name]
 	if !ok {
 		return 0, false
 	}
-	for i := len(s.data) - 1; i >= 0; i-- {
-		if !isGap(s.data[i]) {
-			return s.data[i], true
+	data := m.window(s)
+	for i := len(data) - 1; i >= 0; i-- {
+		if !isGap(data[i]) {
+			return data[i], true
 		}
 	}
 	return 0, false

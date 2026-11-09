@@ -58,6 +58,12 @@ func WithTintColor(c color.Color) Option {
 	return func(m *Model) { m.SetTintColor(c) }
 }
 
+// WithHistory keeps up to n points per series, and never fewer than the plot width.
+// Points beyond the width stay hidden until SetSize widens the chart.
+func WithHistory(n int) Option {
+	return func(m *Model) { m.SetHistory(n) }
+}
+
 // WithEvent registers an initial timeline event marker at a historical offset (0 = newest point).
 func WithEvent(offset int, ev Event) Option {
 	return func(m *Model) { m.AddEventAt(offset, ev) }

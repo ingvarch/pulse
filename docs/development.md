@@ -33,7 +33,7 @@ Each demo is a Bubble Tea program in the `examples/` module. Run them from the r
 
 | Command | What it shows | Keys |
 | ------- | ------------- | ---- |
-| `go -C examples run ./livedemo` | One generated signal | `t` line width, `m` lines or braille, `f` tinted fill, `s` solid fill, `e` add an event |
+| `go -C examples run ./livedemo` | One generated signal. Resizes with the terminal and keeps 1000 points | `t` line width, `m` lines or braille, `f` tinted fill, `s` solid fill, `e` add an event |
 | `go -C examples run ./multidemo` | CPU, MEM and NET series | `t` line width, `m` lines or braille |
 | `go -C examples run ./rxtxdemo` | Network RX and TX around a zero baseline | `w` line width, `s` smoothing, `m` lines or braille, `f` fill, `t` tinted fill, `z` zero baseline, `y` symmetric range |
 | `go -C examples run ./cpulive` | CPU and RAM of this machine, read with gopsutil | `t` line width, `m` lines or braille |

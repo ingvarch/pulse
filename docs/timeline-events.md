@@ -53,7 +53,7 @@ type VisibleEvent struct {
 | ------ | ----------- |
 | `chart.AddEvent(ev Event)` | Pins a new event at the current newest point (`now`, right edge). |
 | `chart.AddEventAt(offset int, ev Event)` | Pins an event at a historical offset (`0` = newest point, `15` = 15 points ago). |
-| `chart.VisibleEvents() []VisibleEvent` | Returns all events currently visible within the sliding window. Automatically prunes off-screen events. |
+| `chart.VisibleEvents() []VisibleEvent` | Returns all events currently visible within the sliding window. |
 | `chart.EventsBox() string` | Returns a formatted, bordered Lip Gloss card displaying all active visible events with age tags (`(now)`, `(-14)`). |
 | `chart.ClearEvents()` | Clears all registered events from the chart. |
 
@@ -86,7 +86,7 @@ Pulse charts maintain an internal time step (`m.step`). Every time you push a da
 4. **Rendering**:
    - The pin glyph (`▼`, `🚀`, `⚡`) is anchored at row 0 (the top margin).
    - If `NoLine` is `false`, a subtle vertical guideline (`┆`) cascades down through empty space and shaded/tinted area fill, preserving line curves (`╭`, `╯`, `─`) without disruption.
-5. **Garbage Collection**: Once an event scrolls past the left edge ($\text{col} < 0$), Pulse automatically purges it from memory.
+5. **Garbage Collection**: Once an event is older than the history ($\text{age} \geq \max(\text{history}, W)$), Pulse purges it from memory on the next push or when `SetSize` or `SetHistory` makes the history smaller. Without `WithHistory` that is the left edge ($\text{col} < 0$). With a history, an event that left the window comes back when `SetSize` widens the chart.
 
 ---
 

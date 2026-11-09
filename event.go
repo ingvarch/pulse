@@ -3,6 +3,7 @@ package pulse
 import (
 	"fmt"
 	"image/color"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -95,7 +96,6 @@ func (m *Model) VisibleEvents() []VisibleEvent {
 	}
 	w := m.w
 	out := make([]VisibleEvent, 0, len(m.events))
-	pruned := make([]eventRecord, 0, len(m.events))
 	for _, rec := range m.events {
 		age := m.step - rec.step
 		col := (w - 1) - age
@@ -106,12 +106,16 @@ func (m *Model) VisibleEvents() []VisibleEvent {
 				Event: rec.event,
 			})
 		}
-		if col >= 0 {
-			pruned = append(pruned, rec)
-		}
 	}
-	m.events = pruned
 	return out
+}
+
+// pruneEvents drops events that left the history capacity.
+func (m *Model) pruneEvents() {
+	keep := m.capacity()
+	m.events = slices.DeleteFunc(m.events, func(rec eventRecord) bool {
+		return m.step-rec.step >= keep
+	})
 }
 
 // EventsBox returns a boxed card listing all currently visible timeline events.
