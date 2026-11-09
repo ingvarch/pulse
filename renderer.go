@@ -25,6 +25,9 @@ const (
 var DefaultTintColor color.Color = lipgloss.Color("#1f2335")
 
 // Chart provides the read-only contract for inspecting chart dimensions, data, and styles.
+//
+// On a log scale, Render gets a Chart in plot space: Min 0, Max log10(hi/lo) for the drawn range lo..hi,
+// series values log10(v/lo) with non-positive values as NaN, and ZeroBaseline, Symmetric and SeriesInverted false.
 type Chart interface {
 	Width() int
 	Height() int

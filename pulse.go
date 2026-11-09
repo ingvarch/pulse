@@ -15,6 +15,8 @@ type Model struct {
 	w, h     int
 	history  int
 	min, max float64
+	// rangeMin and rangeMax are the range before the symmetric rewrite, as set or as auto range computed it.
+	rangeMin, rangeMax float64
 
 	series map[string]*series
 	order  []string
@@ -42,6 +44,7 @@ type Model struct {
 	events []eventRecord
 
 	autoRange     bool
+	logScale      bool
 	zeroBaseline  bool
 	symmetric     bool
 	negativeStyle lipgloss.Style
@@ -74,6 +77,7 @@ func New(w, h int, opts ...Option) *Model {
 		h:          h,
 		min:        0,
 		max:        100,
+		rangeMax:   100,
 		series:     map[string]*series{},
 		grid:       true,
 		fill:       true,
@@ -88,7 +92,7 @@ func New(w, h int, opts ...Option) *Model {
 		o(m)
 	}
 	if m.symmetric {
-		m.setRange(m.min, m.max)
+		m.setRange(m.rangeMin, m.rangeMax)
 	}
 	if m.min > m.max {
 		m.min, m.max = m.max, m.min
@@ -209,6 +213,7 @@ func (m *Model) setRange(min, max float64) bool {
 	if min == max {
 		max = min + 1
 	}
+	m.rangeMin, m.rangeMax = min, max
 	if m.symmetric {
 		limit := math.Max(math.Abs(min), math.Abs(max))
 		if limit == 0 {
@@ -351,9 +356,11 @@ func (m *Model) Width() int { return m.w }
 func (m *Model) Height() int { return m.h }
 
 // Min returns the chart minimum Y value. With auto range it is the minimum of the last render.
+// On a log scale the drawn range can differ; see SetLogScale.
 func (m *Model) Min() float64 { return m.min }
 
 // Max returns the chart maximum Y value. With auto range it is the maximum of the last render.
+// On a log scale the drawn range can differ; see SetLogScale.
 func (m *Model) Max() float64 { return m.max }
 
 // Fill returns whether area fill is enabled.
@@ -431,7 +438,7 @@ func (m *Model) ZeroBaseline() bool { return m.zeroBaseline }
 func (m *Model) SetSymmetric(on bool) {
 	m.symmetric = on
 	if on {
-		m.setRange(m.min, m.max)
+		m.setRange(m.rangeMin, m.rangeMax)
 	}
 }
 

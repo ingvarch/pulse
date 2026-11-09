@@ -238,6 +238,19 @@ func TestAutoRange_SetAutoRangeOffKeepsLastRange(t *testing.T) {
 	}
 }
 
+func TestAutoRange_SetSymmetricAfterOffMirrorsTheLastRange(t *testing.T) {
+	m := pulse.New(10, 10, pulse.WithAutoRange(true))
+	m.Push(120)
+	m.Push(730)
+	m.View()
+	max := m.Max()
+	m.SetAutoRange(false)
+	m.SetSymmetric(true)
+	if m.Min() != -max || m.Max() != max {
+		t.Fatalf("range = %v..%v, want the last auto range mirrored: %v..%v", m.Min(), m.Max(), -max, max)
+	}
+}
+
 func TestAutoRange_CustomTicksLabelOnlyInsideRange(t *testing.T) {
 	m := pulse.New(10, 10, pulse.WithAutoRange(true), pulse.WithTicks(0, 500, 5000))
 	m.Push(730)

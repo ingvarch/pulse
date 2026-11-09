@@ -47,7 +47,7 @@ pulse.WithTintedFill(true) // seamlessly bridges the gap between line curves and
 pulse.WithSolidFill(false) // false: stippled "░", true: solid background surface
 pulse.WithTintColor(color) // optional custom tint color; defaults to Tokyo Night slate #1f2335
 ```
-- **Shading (`░`)**: Extends from the underside of the curve down to the baseline (`0.0`).
+- **Shading (`░`)**: Extends from the underside of the curve down to the baseline (`0.0`). On a [log scale](axes-and-grid.md#logarithmic-scale) it goes down to the bottom row.
 - **Tinted Fill (`WithTintedFill`)**: Applies a continuous background tone across both the line cells and the fill cells. This completely eliminates the dark horizontal gap under box-drawing glyphs and gives the fill area a luminous, unified depth.
 - **Solid Fill (`WithSolidFill`)**: When enabled alongside `WithTintedFill`, turns the area under the curve into a pure solid background surface rather than stippled dots.
 - **Custom Tint (`WithTintColor`)**: Overrides the default Tokyo Night slate (`#1f2335`) with any custom color or palette surface.

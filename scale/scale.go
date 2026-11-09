@@ -3,6 +3,7 @@ package scale
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 )
 
@@ -159,4 +160,101 @@ func BytesRateFormatter(abs bool) func(float64) string {
 	return func(v float64) string {
 		return formatBytesWithSuffix(v, "/s", abs)
 	}
+}
+
+// LogTicks returns tick values for a logarithmic axis over [min, max]: the powers of ten inside it.
+// With fewer than two powers it adds the 2x and 5x values of each decade, and if that still
+// gives fewer than two ticks it adds min and max. More than maxTicks ticks are thinned to
+// every k-th one, counted from the lowest power of ten (or the lowest tick when there is none).
+// It returns nil unless 0 < min <= max and both are finite.
+func LogTicks(min, max float64, maxTicks int) []float64 {
+	if !(min > 0 && max >= min) || math.IsInf(max, 0) {
+		return nil
+	}
+	if maxTicks < 2 {
+		maxTicks = 2
+	}
+	first, last := decadeOf(min), decadeOf(max)
+	ticks := logSteps(min, max, first, last, 1)
+	if len(ticks) < 2 {
+		ticks = logSteps(min, max, first, last, 1, 2, 5)
+	}
+	if len(ticks) < 2 {
+		ticks = append(ticks, min, max)
+		slices.Sort(ticks)
+		return slices.Compact(ticks)
+	}
+	return thin(ticks, maxTicks)
+}
+
+// thin keeps every k-th tick so at most maxTicks remain. The steps start at the first power of ten,
+// or at the lowest tick when there is none, and the result keeps two ticks when it can.
+func thin(ticks []float64, maxTicks int) []float64 {
+	k := (len(ticks) + maxTicks - 1) / maxTicks
+	anchor := slices.IndexFunc(ticks, func(v float64) bool { return v == math.Pow10(decadeOf(v)) })
+	if anchor < 0 {
+		anchor = 0
+	}
+	var out []float64
+	for i := anchor % k; i < len(ticks); i += k {
+		out = append(out, ticks[i])
+	}
+	if len(out) < 2 && len(ticks) >= 2 {
+		return ticks[min(anchor, len(ticks)-2):][:2]
+	}
+	return out
+}
+
+// LogRange rounds [min, max] out to whole decades: 10^floor(log10(min)) to 10^ceil(log10(max)).
+// When both land on the same power, hi is ten times lo. A bound that has no finite power of ten
+// (below the smallest or above the largest) stays as it is. The bounds are swapped when min > max.
+// Unless both are positive and finite, it returns the input.
+func LogRange(min, max float64) (lo, hi float64) {
+	if !(min > 0 && max > 0) || math.IsInf(min, 0) || math.IsInf(max, 0) {
+		return min, max
+	}
+	if min > max {
+		min, max = max, min
+	}
+	lo = math.Pow10(decadeOf(min))
+	if lo == 0 {
+		lo = min
+	}
+	hi = math.Pow10(decadeOf(max))
+	if hi < max {
+		hi *= 10
+	}
+	if hi < max || math.IsInf(hi, 0) {
+		hi = max
+	}
+	if hi == lo && !math.IsInf(lo*10, 0) {
+		hi = lo * 10
+	}
+	return lo, hi
+}
+
+// logSteps returns mult*10^e inside [min, max] for each decade e in [first, last], ascending.
+func logSteps(min, max float64, first, last int, mult ...float64) []float64 {
+	var out []float64
+	for e := first; e <= last; e++ {
+		for _, m := range mult {
+			if v := m * math.Pow10(e); v >= min && v <= max {
+				out = append(out, v)
+			}
+		}
+	}
+	return out
+}
+
+// decadeOf returns floor(log10(v)). Log10 is only a first guess: it can be off by many decades
+// for subnormal v on amd64, where math.Log reads the exponent straight from the bits.
+func decadeOf(v float64) int {
+	e := int(math.Floor(math.Log10(v)))
+	for math.Pow10(e) > v {
+		e--
+	}
+	for math.Pow10(e+1) <= v {
+		e++
+	}
+	return e
 }

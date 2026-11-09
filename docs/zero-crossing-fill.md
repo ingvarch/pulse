@@ -14,6 +14,8 @@ This capability is essential for modern terminal dashboards monitoring:
 
 ---
 
+The zero baseline, the symmetric range, inverted series and negative styles are ignored on a [log scale](axes-and-grid.md#logarithmic-scale).
+
 ## The Problem with Bottom-Anchored Fill
 
 In traditional terminal charting libraries, area fill (`░`) is unconditionally anchored to the bottom edge of the plot. When visualizing metrics that cross zero:

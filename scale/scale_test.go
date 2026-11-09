@@ -3,6 +3,7 @@ package scale_test
 import (
 	"math"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/ingvarch/pulse/scale"
@@ -155,5 +156,132 @@ func TestNiceTicks_HugeBoundsTerminate(t *testing.T) {
 	lo, hi := scale.NiceRange(0, 1.7e308, 5)
 	if math.IsInf(lo, 0) || math.IsInf(hi, 0) || hi < 1.7e308 {
 		t.Fatalf("NiceRange(0,1.7e308,5) = %v..%v", lo, hi)
+	}
+}
+
+func TestLogTicks_PowersOfTen(t *testing.T) {
+	got := scale.LogTicks(1, 1000, 5)
+	want := []float64{1, 10, 100, 1000}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("LogTicks(1,1000,5) = %v, want %v", got, want)
+	}
+}
+
+func TestLogTicks_BoundsBetweenPowers(t *testing.T) {
+	got := scale.LogTicks(3, 5000, 5)
+	want := []float64{10, 100, 1000}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("LogTicks(3,5000,5) = %v, want %v", got, want)
+	}
+}
+
+func TestLogTicks_NarrowRangeAddsTwoAndFive(t *testing.T) {
+	tests := []struct {
+		min, max float64
+		want     []float64
+	}{
+		{2, 8, []float64{2, 5}},
+		{10, 30, []float64{10, 20}},
+		{0.5, 1.5, []float64{0.5, 1}},
+		{1, 10, []float64{1, 10}},
+	}
+	for _, tc := range tests {
+		if got := scale.LogTicks(tc.min, tc.max, 5); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("LogTicks(%v,%v,5) = %v, want %v", tc.min, tc.max, got, tc.want)
+		}
+	}
+}
+
+func TestLogTicks_NarrowRangeWithoutNiceValueKeepsBounds(t *testing.T) {
+	got := scale.LogTicks(3, 4, 5)
+	want := []float64{3, 4}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("LogTicks(3,4,5) = %v, want %v", got, want)
+	}
+}
+
+func TestLogTicks_ThinsPowersFromTheLowest(t *testing.T) {
+	got := scale.LogTicks(1, 1e9, 4)
+	want := []float64{1, 1e3, 1e6, 1e9}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("LogTicks(1,1e9,4) = %v, want %v", got, want)
+	}
+	got = scale.LogTicks(1, 1e9, 3)
+	want = []float64{1, 1e4, 1e8}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("LogTicks(1,1e9,3) = %v, want %v", got, want)
+	}
+}
+
+func TestLogTicks_InvalidRange(t *testing.T) {
+	for _, r := range [][2]float64{{0, 10}, {-1, 10}, {10, 1}, {math.NaN(), 10}, {1, math.Inf(1)}} {
+		if got := scale.LogTicks(r[0], r[1], 5); got != nil {
+			t.Errorf("LogTicks(%v,%v,5) = %v, want nil", r[0], r[1], got)
+		}
+	}
+}
+
+func TestLogRange_WidensToWholeDecades(t *testing.T) {
+	tests := []struct {
+		min, max, lo, hi float64
+	}{
+		{5, 300, 1, 1000},
+		{0.03, 40, 0.01, 100},
+		{10, 1000, 10, 1000},
+		{1000, 1000, 1000, 10000},
+		{20, 80, 10, 100},
+		{300, 5, 1, 1000},
+	}
+	for _, tc := range tests {
+		lo, hi := scale.LogRange(tc.min, tc.max)
+		if lo != tc.lo || hi != tc.hi {
+			t.Errorf("LogRange(%v,%v) = %v, %v, want %v, %v", tc.min, tc.max, lo, hi, tc.lo, tc.hi)
+		}
+	}
+}
+
+func TestLogTicks_KeepsThePowerWhenThinningHalfDecades(t *testing.T) {
+	got := scale.LogTicks(3, 30, 2)
+	if !slices.Contains(got, 10) {
+		t.Fatalf("LogTicks(3, 30, 2) = %v, want it to keep 10", got)
+	}
+	if len(got) > 2 {
+		t.Fatalf("LogTicks(3, 30, 2) = %v, want at most 2 ticks", got)
+	}
+}
+
+func TestLogRange_ExtremeBoundsStayFinite(t *testing.T) {
+	for _, tc := range []struct{ min, max, wantLo, wantHi float64 }{
+		{5e-324, 5e-324, 5e-324, 5e-323},
+		{1.5e308, 1.5e308, 1e308, 1.5e308},
+	} {
+		if lo, hi := scale.LogRange(tc.min, tc.max); lo != tc.wantLo || hi != tc.wantHi {
+			t.Errorf("LogRange(%v, %v) = %v..%v, want %v..%v", tc.min, tc.max, lo, hi, tc.wantLo, tc.wantHi)
+		}
+	}
+}
+
+func TestLogTicks_KeepsTheOnlyNiceValueBetweenTheBounds(t *testing.T) {
+	for _, tc := range []struct {
+		min, max float64
+		want     []float64
+	}{
+		{9, 11, []float64{9, 10, 11}},
+		{15, 25, []float64{15, 20, 25}},
+		{10, 10, []float64{10}},
+	} {
+		if got := scale.LogTicks(tc.min, tc.max, 5); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("LogTicks(%v,%v,5) = %v, want %v", tc.min, tc.max, got, tc.want)
+		}
+	}
+}
+
+func TestLogRange_ReturnsInvalidBoundsUnchanged(t *testing.T) {
+	for _, tc := range [][2]float64{{0, 10}, {-5, 10}, {math.NaN(), 5}, {1, math.Inf(1)}} {
+		lo, hi := scale.LogRange(tc[0], tc[1])
+		same := func(a, b float64) bool { return a == b || (math.IsNaN(a) && math.IsNaN(b)) }
+		if !same(lo, tc[0]) || !same(hi, tc[1]) {
+			t.Errorf("LogRange(%v, %v) = %v, %v, want the input", tc[0], tc[1], lo, hi)
+		}
 	}
 }
