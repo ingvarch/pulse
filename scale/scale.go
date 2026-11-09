@@ -8,6 +8,7 @@ import (
 
 // NiceTicks returns pleasant tick values covering [min, max].
 // Heckbert algorithm: step = 1 / 2 / 2.5 / 5 / 10 * 10^k.
+// If the ticks would overflow float64, it returns [min, max].
 func NiceTicks(min, max float64, maxTicks int) []float64 {
 	if maxTicks < 2 {
 		maxTicks = 2
@@ -41,12 +42,56 @@ func NiceTicks(min, max float64, maxTicks int) []float64 {
 	step := nice * mag
 	lo := math.Floor(min/step) * step
 	hi := math.Ceil(max/step) * step
+	if math.IsInf(step, 0) || math.IsInf(lo, 0) || math.IsInf(hi, 0) {
+		return []float64{min, max}
+	}
 	var out []float64
-	for v := lo; v <= hi+step*0.5; v += step {
+	for v := lo; v <= hi+step*0.5 && !math.IsInf(v, 0); v += step {
 		v = math.Round(v/step) * step
 		out = append(out, v)
 	}
 	return out
+}
+
+// NiceRange rounds [min, max] out to tick values, so that NiceTicks(lo, hi, maxTicks)
+// starts at lo and ends at hi. It returns the narrowest such range.
+// If no finite step fits, it returns the input.
+func NiceRange(min, max float64, maxTicks int) (lo, hi float64) {
+	ticks := NiceTicks(min, max, maxTicks)
+	if len(ticks) < 2 {
+		return min, max
+	}
+	step := ticks[1] - ticks[0]
+	for range 64 {
+		lo, hi = math.Floor(min/step)*step, math.Ceil(max/step)*step
+		if math.IsInf(hi, 0) || math.IsInf(lo, 0) {
+			return min, max
+		}
+		t := NiceTicks(lo, hi, maxTicks)
+		if t[0] == lo && t[len(t)-1] == hi {
+			return lo, hi
+		}
+		step = nextNiceStep(step)
+	}
+	return min, max
+}
+
+// nextNiceStep returns the next value in 1, 2, 2.5, 5 times a power of ten.
+func nextNiceStep(step float64) float64 {
+	mag := math.Pow(10, math.Floor(math.Log10(step)))
+	switch norm := step / mag; {
+	case norm < 1.5:
+		return 2 * mag
+	case norm < 2.25:
+		return 2.5 * mag
+	case norm < 3.75:
+		return 5 * mag
+	case norm < 7.5:
+		return 10 * mag
+	default:
+		// Log10 rounded down a power of ten, such as Log10(1e15): step is 10*mag.
+		return 20 * mag
+	}
 }
 
 // FormatTick formats a tick value concisely: up to 4 significant digits without trailing zeros.

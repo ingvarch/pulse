@@ -175,6 +175,7 @@ All styling and rendering options can be modified dynamically at runtime:
 chart.SetSize(w, h)            // resize the plot, keeps the history
 chart.SetHistory(n)            // keep up to n points per series
 chart.SetGrid(true)            // toggle grid
+chart.SetAutoRange(true)       // fit the Y range to the visible data
 chart.SetXAxis(label)          // time labels under the plot (View adds 2 lines)
 chart.SetXAxisAt(label)        // time labels at the columns you choose
 chart.SetFill(false)           // toggle shaded area fill

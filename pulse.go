@@ -41,6 +41,7 @@ type Model struct {
 	step   int
 	events []eventRecord
 
+	autoRange     bool
 	zeroBaseline  bool
 	symmetric     bool
 	negativeStyle lipgloss.Style
@@ -84,7 +85,7 @@ func New(w, h int, opts ...Option) *Model {
 		o(m)
 	}
 	if m.symmetric {
-		m.SetRange(m.min, m.max)
+		m.setRange(m.min, m.max)
 	}
 	if m.min > m.max {
 		m.min, m.max = m.max, m.min
@@ -179,11 +180,25 @@ func (m *Model) LenSeries(name string) int {
 	return len(m.window(s))
 }
 
-// SetRange dynamically sets the Y-axis range.
+// SetRange sets a fixed Y-axis range and turns auto range off.
 // A call with a NaN or infinite bound is ignored and keeps the current range.
 func (m *Model) SetRange(min, max float64) {
+	if m.setRange(min, max) {
+		m.autoRange = false
+	}
+}
+
+// SetAutoRange turns the automatic Y range on or off. See WithAutoRange.
+// Turning it off keeps the range of the last render.
+func (m *Model) SetAutoRange(on bool) { m.autoRange = on }
+
+// AutoRange returns whether the automatic Y range is on.
+func (m *Model) AutoRange() bool { return m.autoRange }
+
+// setRange stores the range without touching auto range; it reports whether the range was applied.
+func (m *Model) setRange(min, max float64) bool {
 	if isGap(min) || isGap(max) {
-		return
+		return false
 	}
 	if min > max {
 		min, max = max, min
@@ -199,6 +214,7 @@ func (m *Model) SetRange(min, max float64) {
 		min, max = -limit, limit
 	}
 	m.min, m.max = min, max
+	return true
 }
 
 // SetLineStyle dynamically updates the line style.
@@ -331,10 +347,10 @@ func (m *Model) Width() int { return m.w }
 // With an X axis, View returns Height()+2 lines.
 func (m *Model) Height() int { return m.h }
 
-// Min returns the chart minimum Y value.
+// Min returns the chart minimum Y value. With auto range it is the minimum of the last render.
 func (m *Model) Min() float64 { return m.min }
 
-// Max returns the chart maximum Y value.
+// Max returns the chart maximum Y value. With auto range it is the maximum of the last render.
 func (m *Model) Max() float64 { return m.max }
 
 // Fill returns whether area fill is enabled.
@@ -412,7 +428,7 @@ func (m *Model) ZeroBaseline() bool { return m.zeroBaseline }
 func (m *Model) SetSymmetric(on bool) {
 	m.symmetric = on
 	if on {
-		m.SetRange(m.min, m.max)
+		m.setRange(m.min, m.max)
 	}
 }
 

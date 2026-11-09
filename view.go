@@ -1,6 +1,7 @@
 package pulse
 
 import (
+	"math"
 	"slices"
 
 	"charm.land/lipgloss/v2"
@@ -48,6 +49,23 @@ func quarterCols(w int) [3]int {
 // View renders the chart: Y-axis labels + axis border + plot area,
 // then the X axis and label rows when WithXAxis is set.
 func (m *Model) View() string {
+	names := make([]string, 0, len(m.order)+1)
+	names = append(names, "")
+	names = append(names, m.order...)
+	seriesData := make([][]float64, len(names))
+	for idx, name := range names {
+		if s, ok := m.series[name]; ok {
+			data := m.window(s)
+			if s.inverted || (name == "" && m.inverted) {
+				data = negated(data)
+			}
+			seriesData[idx] = data
+		}
+	}
+	if m.autoRange {
+		m.min, m.max = m.fitRange(seriesData)
+	}
+
 	ticks := m.gridTicks()
 	if m.zeroBaseline && m.min <= 0 && m.max >= 0 {
 		hasZero := false
@@ -107,30 +125,13 @@ func (m *Model) View() string {
 		}
 	}
 
-	names := make([]string, 0, len(m.order)+1)
-	names = append(names, "")
-	names = append(names, m.order...)
 	styles := make([]lipgloss.Style, len(names))
 	negativeStyles := make([]lipgloss.Style, len(names))
 	hasNegStyles := make([]bool, len(names))
-	seriesData := make([][]float64, len(names))
 	for idx, name := range names {
 		styles[idx] = m.SeriesStyle(name)
 		negativeStyles[idx] = m.SeriesNegativeStyle(name)
 		hasNegStyles[idx] = m.hasSeriesNegativeStyle(name)
-		if s, ok := m.series[name]; ok {
-			data := m.window(s)
-			isInverted := s.inverted || (name == "" && m.inverted)
-			if isInverted {
-				inv := make([]float64, len(data))
-				for i, val := range data {
-					inv[i] = -val
-				}
-				seriesData[idx] = inv
-			} else {
-				seriesData[idx] = data
-			}
-		}
 	}
 
 	gridStyle := m.axisStyle.Faint(true)
@@ -164,4 +165,43 @@ func (m *Model) View() string {
 // String implements fmt.Stringer, returning the rendered chart View().
 func (m *Model) String() string {
 	return m.View()
+}
+
+// negated returns a copy of data with every sign flipped.
+func negated(data []float64) []float64 {
+	out := make([]float64, len(data))
+	for i, v := range data {
+		out[i] = -v
+	}
+	return out
+}
+
+// fitRange returns the auto range for the plotted values: 0 stays inside,
+// symmetric mirrors it, and the bounds are rounded out to grid ticks.
+func (m *Model) fitRange(seriesData [][]float64) (lo, hi float64) {
+	for _, data := range seriesData {
+		for _, v := range data {
+			if isGap(v) {
+				continue
+			}
+			// Comparisons, not math.Min: a -0 must not replace the starting +0.
+			if v < lo {
+				lo = v
+			}
+			if v > hi {
+				hi = v
+			}
+		}
+	}
+	if m.symmetric {
+		hi = math.Max(-lo, hi)
+		lo = -hi
+	}
+	if hi == lo {
+		hi = 1
+		if m.symmetric {
+			lo = -1
+		}
+	}
+	return scale.NiceRange(lo, hi, m.maxGridTicks())
 }

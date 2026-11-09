@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange")
 	flag.Parse()
 
 	switch *mode {
@@ -38,6 +38,8 @@ func main() {
 		renderXAxis()
 	case "xaxisat":
 		renderXAxisAt()
+	case "autorange":
+		renderAutoRange()
 	}
 }
 
@@ -368,6 +370,45 @@ func renderXAxisAt() {
 		}
 		return ""
 	}))
+}
+
+func renderAutoRange() {
+	preset := theme.TokyoNight()
+
+	lc := pulse.New(80, 13,
+		pulse.WithAutoRange(true),
+		pulse.WithLineWidth(1),
+		pulse.WithFill(true),
+		pulse.WithTintedFill(true),
+		pulse.WithGrid(true),
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithLabelFormatter(func(v float64) string { return fmt.Sprintf("%.0f MB/s", v) }),
+		pulse.WithLineStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7"))),
+	)
+
+	rng := rand.New(rand.NewSource(11))
+	for i := 0; i < 80; i++ {
+		v := 210 + 60*math.Sin(float64(i)*0.15) + (rng.Float64()-0.5)*40
+		if i >= 48 && i < 56 {
+			v += 420 * math.Sin(float64(i-48)/8*math.Pi)
+		}
+		lc.Push(math.Max(0, v))
+	}
+
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Render("NETWORK THROUGHPUT (AUTO RANGE)")
+
+	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(content)
+
+	fmt.Println(box)
 }
 
 const xAxisShotW = 80
