@@ -52,7 +52,7 @@ type VisibleEvent struct {
 | Method | Description |
 | ------ | ----------- |
 | `chart.AddEvent(ev Event)` | Pins a new event at the current newest point (`now`, right edge). |
-| `chart.AddEventAt(offset int, ev Event)` | Pins an event at a historical offset (`0` = newest point, `15` = 15 points ago). |
+| `chart.AddEventAt(age int, ev Event)` | Pins an event `age` points before the newest one (`0` = newest point, `15` = 15 points ago). |
 | `chart.VisibleEvents() []VisibleEvent` | Returns all events currently visible within the sliding window. |
 | `chart.EventsBox() string` | Returns a formatted, bordered Lip Gloss card displaying all active visible events with age tags (`(now)`, `(-14)`). |
 | `chart.ClearEvents()` | Clears all registered events from the chart. |
@@ -74,14 +74,15 @@ pulse.New(width, height,
 
 ## How It Works: The Sliding Window Lifecycle
 
-Pulse charts maintain an internal time step (`m.step`). Every time you push a data point (`chart.Push(v)` or `chart.PushSeries(name, v)`), the timeline advances by one tick:
+Pulse charts maintain an internal time step (`m.step`). It advances by one tick on each push to the default series (`chart.Push(v)`), or, while the default series has no data, on each push to the first named series (`chart.PushSeries(name, v)`). An app that pushes several series per sample advances it once per sample:
 
 1. **Recording**: When you call `chart.AddEvent(ev)`, Pulse stamps the event with the current `step`.
 2. **Aging**: At any moment, the event's age is calculated as:
    $$\text{age} = \text{current\_step} - \text{event\_step}$$
 3. **Column Mapping**: In a chart of width $W$, the screen column is:
-   $$\text{col} = (W - 1) - \text{age}$$
-   - When $\text{age} = 0$, the marker appears at the extreme right edge: `col = W - 1`.
+   $$\text{col} = (W - 1) - (\text{age} - \text{offset})$$
+   - `Age` stays the real age at any offset. Events older than the visible window draw nothing. See [Cursor and Scrolling](cursor-and-scrolling.md#offset).
+   - When $\text{age} = \text{offset}$ (at offset 0, the newest point), the marker appears at the extreme right edge: `col = W - 1`.
    - As new points are pushed, the marker smoothly travels leftward across the grid.
 4. **Rendering**:
    - The pin glyph (`▼`, `🚀`, `⚡`) is anchored at row 0 (the top margin).

@@ -67,6 +67,28 @@ func (m model) View() tea.View {
 }
 ```
 
+## Cursor and Scrolling
+
+Bind keys to `SetCursor` and `SetOffset`, and show `CursorBox` under the chart. Create the chart with `pulse.WithHistory(n)` so there is history to scroll through. See [Cursor and Scrolling](cursor-and-scrolling.md).
+
+```go
+case "left": // older; a cursor outside the view starts at its right edge
+	if c, o := m.chart.Cursor(), m.chart.Offset(); c < o || c >= o+m.chart.Width() {
+		m.chart.SetCursor(o)
+	} else {
+		m.chart.SetCursor(c + 1)
+	}
+case "right": // newer; at age 0 the cursor hides
+	m.chart.SetCursor(m.chart.Cursor() - 1)
+case "[":
+	m.chart.SetOffset(m.chart.Offset() + max(m.chart.Width()/4, 1))
+case "]":
+	m.chart.SetOffset(m.chart.Offset() - max(m.chart.Width()/4, 1))
+case "esc":
+	m.chart.SetCursor(-1)
+	m.chart.SetOffset(0)
+```
+
 ## Resizing
 
 Terminal size changes arrive as `tea.WindowSizeMsg`. Call `SetSize` with the plot size: the window width minus the label column and the axis (and the right axis line and its label column, with `WithRightAxis`), and the height minus the lines you draw around the chart. The data stays in the chart, so you do not create a new one.

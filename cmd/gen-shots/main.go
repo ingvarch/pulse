@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis | cursor")
 	flag.Parse()
 
 	switch *mode {
@@ -46,6 +46,8 @@ func main() {
 		renderLogScale()
 	case "rightaxis":
 		renderRightAxis()
+	case "cursor":
+		renderCursor()
 	}
 }
 
@@ -580,6 +582,49 @@ func renderRightAxis() {
 		Render("CPU (LEFT) AND REQUESTS PER SECOND (RIGHT)")
 
 	content := fmt.Sprintf("%s\n\n%s\n%s", header, lc.View(), lc.Legend())
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(content)
+
+	fmt.Println(box)
+}
+
+func renderCursor() {
+	preset := theme.TokyoNight()
+	newest := time.Date(2026, 10, 15, 14, 47, 0, 0, time.UTC)
+
+	lc := pulse.New(80, 13,
+		pulse.WithRange(0, 100),
+		pulse.WithTicks(0, 25, 50, 75, 100),
+		pulse.WithHistory(200),
+		pulse.WithLineWidth(1),
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithXAxis(func(age int) string {
+			return newest.Add(-time.Duration(age) * time.Minute).Format("15:04")
+		}),
+		pulse.WithSeriesStyle("cpu", lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(1)))),
+		pulse.WithSeriesStyle("mem", lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(0)))),
+	)
+
+	rng := rand.New(rand.NewSource(17))
+	for i := 0; i < 160; i++ {
+		cpu := 52 + 30*math.Sin(float64(i)*0.13) + 10*math.Sin(float64(i)*0.41) + (rng.Float64()-0.5)*6
+		mem := 40 + 12*math.Sin(float64(i)*0.05) + (rng.Float64()-0.5)*2
+		lc.PushSeries("cpu", math.Max(0, math.Min(100, cpu)))
+		lc.PushSeries("mem", math.Max(0, math.Min(100, mem)))
+	}
+	lc.SetOffset(30)
+	lc.SetCursor(45)
+
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Render("CPU AND MEMORY, SCROLLED BACK 30 POINTS")
+
+	content := fmt.Sprintf("%s\n\n%s\n%s", header, lc.View(), lc.CursorBox())
 
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

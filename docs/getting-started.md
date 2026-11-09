@@ -47,7 +47,7 @@ func main() {
 
 ## Sliding Window
 
-The chart shows the last `w` points of each series. When you call `Push(val)` or `PushSeries(name, val)` beyond the width, older points roll off, creating a smooth real-time stream.
+At offset 0 the chart shows the last `w` points of each series (see [Cursor and Scrolling](cursor-and-scrolling.md#offset)). When you call `Push(val)` or `PushSeries(name, val)` beyond the width, older points roll off, creating a smooth real-time stream.
 
 To query buffer lengths:
 ```go
@@ -55,7 +55,7 @@ totalPoints := chart.Len()             // Default series
 cpuPoints   := chart.LenSeries("cpu")  // Named series
 ```
 
-`Len`, `LenSeries`, `SeriesData` and `Last` work on the points in the window.
+`Len`, `LenSeries` and `SeriesData` work on the points in the window, which follows the [offset](cursor-and-scrolling.md#offset). `Last` looks at the newest `Width()` points.
 
 ## History and Resizing
 
@@ -185,6 +185,8 @@ chart.SetRightAxis(a)          // second Y axis on the right, see axes-and-grid.
 chart.SetSeriesRightAxis(n, true) // plot a series against the right axis
 chart.SetXAxis(label)          // time labels under the plot (View adds 2 lines)
 chart.SetXAxisAt(label)        // time labels at the columns you choose
+chart.SetCursor(age)           // value cursor, -1 hides it, see cursor-and-scrolling.md
+chart.SetOffset(n)             // scroll the view n points back into the history
 chart.SetFill(false)           // toggle shaded area fill
 chart.SetLineWidth(2)          // switch between thin (1) and bold (2)
 chart.SetMode(pulse.ModeBraille)// switch between ModeLines and ModeBraille

@@ -298,6 +298,9 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 				return s, true
 			}
 		}
+		if col == ctx.CursorCol {
+			return renderCursor(c, nil), true
+		}
 		return "", false
 	})
 }

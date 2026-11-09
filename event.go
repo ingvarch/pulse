@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"slices"
-	"strings"
 
 	"charm.land/lipgloss/v2"
 )
@@ -56,10 +55,7 @@ func renderEventGuideline(ve VisibleEvent, bg color.Color) (string, bool) {
 	if st.GetForeground() == (lipgloss.NoColor{}) {
 		st = st.Foreground(DefaultEventColor).Faint(true)
 	}
-	if bg != nil && bg != (lipgloss.NoColor{}) {
-		st = st.Background(bg)
-	}
-	return st.Render("┆"), true
+	return onBackground(st, bg).Render(guideGlyph), true
 }
 
 type eventRecord struct {
@@ -73,14 +69,14 @@ func (m *Model) AddEvent(ev Event) {
 	m.AddEventAt(0, ev)
 }
 
-// AddEventAt records an event at a historical offset (0 = newest point, 10 = 10 points ago).
-func (m *Model) AddEventAt(offset int, ev Event) {
-	if offset < 0 {
-		offset = 0
+// AddEventAt records an event age points before the newest one (0 = newest point, 10 = 10 points ago).
+func (m *Model) AddEventAt(age int, ev Event) {
+	if age < 0 {
+		age = 0
 	}
 	m.events = append(m.events, eventRecord{
 		event: ev,
-		step:  m.step - offset,
+		step:  m.step - age,
 	})
 }
 
@@ -90,6 +86,7 @@ func (m *Model) ClearEvents() {
 }
 
 // VisibleEvents returns all timeline events currently visible within the chart window.
+// Age is the real age of the event, whatever the offset.
 func (m *Model) VisibleEvents() []VisibleEvent {
 	if len(m.events) == 0 {
 		return nil
@@ -98,7 +95,7 @@ func (m *Model) VisibleEvents() []VisibleEvent {
 	out := make([]VisibleEvent, 0, len(m.events))
 	for _, rec := range m.events {
 		age := m.step - rec.step
-		col := (w - 1) - age
+		col := m.colOfAge(age)
 		if col >= 0 && col < w {
 			out = append(out, VisibleEvent{
 				Col:   col,
@@ -139,8 +136,5 @@ func (m *Model) EventsBox() string {
 		line := badge + " " + m.axisStyle.Render(label) + " " + m.axisStyle.Faint(true).Render(timeAgo)
 		lines = append(lines, line)
 	}
-	return lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		Padding(0, 1).
-		Render(strings.Join(lines, "\n"))
+	return boxed(lines)
 }

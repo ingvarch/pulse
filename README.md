@@ -25,6 +25,7 @@ Pulse is a Go library that draws live line charts in the terminal. It is for dev
 - Thresholds: dashed limit lines with labels, and series colored where they cross a limit.
 - Events such as deploys and alerts, pinned to points on the timeline with a marker and a vertical line.
 - An optional time axis with labels from your own function, at the quarter columns or at the columns you choose.
+- A cursor that shows each series' value at a past point, and scrolling back through the kept history.
 - Gaps for missing samples: `NaN` and `±Inf` draw nothing.
 
 ## Usage
@@ -60,6 +61,7 @@ go -C examples run ./livedemo
 - [Zero-Crossing and RX/TX](docs/zero-crossing-fill.md): zero baseline, mirrored series, negative styles, byte-rate labels
 - [Thresholds](docs/thresholds.md): limit lines, labels, colors by threshold
 - [Timeline Events](docs/timeline-events.md): deploys and alerts on the chart, the events card
+- [Cursor and Scrolling](docs/cursor-and-scrolling.md): a value cursor, the values at a past point, scrolling back through the history
 - [Bubble Tea Integration](docs/bubbletea.md): a chart inside a Bubble Tea model, ticks, hotkeys, resizing
 - [Development](docs/development.md): checks, demos, screenshots, releases, project structure
 - [API reference](https://pkg.go.dev/github.com/ingvarch/pulse) on pkg.go.dev

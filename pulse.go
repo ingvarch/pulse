@@ -56,6 +56,8 @@ type Model struct {
 
 	thresholds      []Threshold
 	thresholdColors bool
+
+	cursor, offset int
 }
 
 type series struct {
@@ -91,6 +93,7 @@ func New(w, h int, opts ...Option) *Model {
 		smooth:     true,
 		lineWidth:  2,
 		renderer:   LinesRenderer{},
+		cursor:     -1,
 	}
 	for _, o := range opts {
 		o(m)
@@ -123,8 +126,8 @@ func (m *Model) getOrCreate(name string) *series {
 	return s
 }
 
-// Push adds a data point to the default series. The chart shows the last w points
-// and keeps up to max(history, w) of them.
+// Push adds a data point to the default series. The chart keeps up to max(history, w) points
+// and shows w of them, the newest ones at offset 0.
 // NaN, +Inf and -Inf are kept as given and drawn as gaps.
 func (m *Model) Push(v float64) {
 	m.PushSeries("", v)
@@ -136,10 +139,20 @@ func (m *Model) PushSeries(name string, v float64) {
 	s := m.getOrCreate(name)
 	s.data = append(s.data, v)
 	s.data = lastN(s.data, m.capacity())
-	if len(m.order) == 0 || name == m.order[0] || name == "" {
+	if m.drivesStep(name) {
 		m.step++
 		m.pruneEvents()
+		m.followPush()
 	}
+}
+
+// drivesStep reports whether a push to name advances the timeline by one step:
+// a push to the default series once it has data, else a push to the first named series.
+func (m *Model) drivesStep(name string) bool {
+	if d, ok := m.series[""]; ok && len(d.data) > 0 {
+		return name == ""
+	}
+	return name == m.order[0]
 }
 
 // SetSize changes the plot size and clamps w and h to at least 1, as New does.
@@ -166,6 +179,7 @@ func (m *Model) trim() {
 	for _, s := range m.series {
 		s.data = lastN(s.data, m.capacity())
 	}
+	m.offset = min(m.offset, m.maxOffset())
 }
 
 // lastN returns the last n elements of data, or all of it when it is shorter.
@@ -176,8 +190,14 @@ func lastN(data []float64, n int) []float64 {
 	return data
 }
 
-// window returns the points of s inside the visible window.
-func (m *Model) window(s *series) []float64 { return lastN(s.data, m.w) }
+// window returns the points of s inside the visible window: the ones aged offset to offset+w-1.
+func (m *Model) window(s *series) []float64 {
+	end := len(s.data) - m.offset
+	if end <= 0 {
+		return nil
+	}
+	return lastN(s.data[:end], m.w)
+}
 
 // Len returns the number of points in the default series within the window.
 func (m *Model) Len() int { return m.LenSeries("") }
@@ -401,7 +421,8 @@ func (m *Model) SeriesNames() []string {
 	return out
 }
 
-// SeriesData returns a copy of the points of a series in the visible window (the last Width() points).
+// SeriesData returns a copy of the points of a series in the visible window:
+// Width() points ending Offset() points before the newest.
 // Missing points are returned raw (NaN, +Inf, -Inf), so custom renderers see them.
 func (m *Model) SeriesData(name string) []float64 {
 	s, ok := m.series[name]
@@ -419,14 +440,14 @@ func (m *Model) SeriesStyle(name string) lipgloss.Style {
 	return m.lineStyle
 }
 
-// Last returns the most recent finite value of a named series in the visible window.
+// Last returns the most recent finite value of a named series among its newest Width() points, whatever the offset.
 // Trailing gaps (NaN, +Inf, -Inf) are skipped.
 func (m *Model) Last(name string) (float64, bool) {
 	s, ok := m.series[name]
 	if !ok {
 		return 0, false
 	}
-	data := m.window(s)
+	data := lastN(s.data, m.w)
 	for i := len(data) - 1; i >= 0; i-- {
 		if !isGap(data[i]) {
 			return data[i], true

@@ -18,8 +18,8 @@ type tickMsg time.Time
 
 const (
 	// Columns taken by the Y labels and the axis, and lines taken by the header,
-	// the legend and a small events box.
-	chartMargin, chartLines = 6, 9
+	// the two help lines, the legend and a small events box.
+	chartMargin, chartLines = 6, 11
 	minChartW, minChartH    = 10, 4
 	historyPoints           = 1000
 	prefillPoints           = 300
@@ -52,12 +52,40 @@ func signal(step int) float64 {
 
 func (m model) Init() tea.Cmd { return tick }
 
+// moveCursor handles the cursor and scroll keys and reports whether s was one of them.
+func (m model) moveCursor(s string) bool {
+	page := max(m.chart.Width()/4, 1)
+	switch s {
+	case "left":
+		if c, o := m.chart.Cursor(), m.chart.Offset(); c < o || c >= o+m.chart.Width() {
+			m.chart.SetCursor(o)
+		} else {
+			m.chart.SetCursor(c + 1)
+		}
+	case "right":
+		m.chart.SetCursor(m.chart.Cursor() - 1)
+	case "[":
+		m.chart.SetOffset(m.chart.Offset() + page)
+	case "]":
+		m.chart.SetOffset(m.chart.Offset() - page)
+	case "esc":
+		m.chart.SetCursor(-1)
+		m.chart.SetOffset(0)
+	default:
+		return false
+	}
+	return true
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		s := msg.String()
-		if s == "q" || s == "ctrl+c" || s == "esc" {
+		if s == "q" || s == "ctrl+c" {
 			return m, tea.Quit
+		}
+		if m.moveCursor(s) {
+			return m, nil
 		}
 		if s == "f" {
 			m.chart.SetTintedFill(!m.chart.TintedFill())
@@ -115,12 +143,16 @@ func (m model) View() tea.View {
 	if m.chart.SolidFill() {
 		fillStr = "solid fill"
 	}
-	header := fmt.Sprintf("signal %5.1f  [%s, %s, %s]  (f: tint, s: solid, t: width, e: drop event, m: braille, q: quit)\n",
-		m.last, modeStr, tintStr, fillStr)
+	header := fmt.Sprintf("signal %5.1f  [%s, %s, %s]\n", m.last, modeStr, tintStr, fillStr) +
+		"f: tint, s: solid, t: width, e: drop event, m: braille, q: quit\n" +
+		"←→: cursor, [ ]: scroll, esc: live\n"
 
 	boxes := m.chart.LegendBox()
 	if eb := m.chart.EventsBox(); eb != "" {
 		boxes = lipgloss.JoinHorizontal(lipgloss.Top, boxes, "  ", eb)
+	}
+	if cb := m.chart.CursorBox(); cb != "" {
+		boxes = lipgloss.JoinHorizontal(lipgloss.Top, boxes, "  ", cb)
 	}
 
 	return tea.NewView(header + m.chart.View() + "\n" + boxes + "\n")

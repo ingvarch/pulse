@@ -72,9 +72,9 @@ func WithHistory(n int) Option {
 	return func(m *Model) { m.SetHistory(n) }
 }
 
-// WithEvent registers an initial timeline event marker at a historical offset (0 = newest point).
-func WithEvent(offset int, ev Event) Option {
-	return func(m *Model) { m.AddEventAt(offset, ev) }
+// WithEvent registers an initial timeline event marker age points before the newest one (0 = newest point).
+func WithEvent(age int, ev Event) Option {
+	return func(m *Model) { m.AddEventAt(age, ev) }
 }
 
 // WithSmooth enables or disables line smoothing (rounded corners or spline).

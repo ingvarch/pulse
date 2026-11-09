@@ -79,6 +79,8 @@ type RenderContext struct {
 	// ThresholdLines maps a row to its threshold line: one rendered cell per plot column.
 	// A wide cell is followed by empty cells, and the first cell is always a dash.
 	ThresholdLines map[int][]string
+	// CursorCol is the plot column of the cursor, or -1 when it is hidden or outside the plot.
+	CursorCol int
 }
 
 // isNegativeRow reports whether terminal row r represents negative values.
@@ -205,6 +207,17 @@ func styleFor(owner, r int, isNeg bool, ctx RenderContext, fallback lipgloss.Sty
 
 func faintStyleFor(owner, r int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
 	return styleFor(owner, r, isNeg, ctx, fallback).Faint(true)
+}
+
+// guideGlyph draws event guidelines and the cursor.
+const guideGlyph = "┆"
+
+// onBackground returns st on the background bg, or st when bg is unset.
+func onBackground(st lipgloss.Style, bg color.Color) lipgloss.Style {
+	if bg != nil && bg != (lipgloss.NoColor{}) {
+		return st.Background(bg)
+	}
+	return st
 }
 
 func gridCell(h, v bool) string {

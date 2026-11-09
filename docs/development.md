@@ -29,11 +29,11 @@ The demos in `examples/` are a separate module, `github.com/ingvarch/pulse/examp
 
 ## Run the Demos
 
-Each demo is a Bubble Tea program in the `examples/` module. Run them from the repository root with `go -C examples run`. `q`, `Esc` or `Ctrl+C` quits.
+Each demo is a Bubble Tea program in the `examples/` module. Run them from the repository root with `go -C examples run`. `q` or `Ctrl+C` quits, and so does `Esc`, except in `livedemo`.
 
 | Command | What it shows | Keys |
 | ------- | ------------- | ---- |
-| `go -C examples run ./livedemo` | One generated signal. Resizes with the terminal and keeps 1000 points | `t` line width, `m` lines or braille, `f` tinted fill, `s` solid fill, `e` add an event |
+| `go -C examples run ./livedemo` | One generated signal. Resizes with the terminal and keeps 1000 points | `t` line width, `m` lines or braille, `f` tinted fill, `s` solid fill, `e` add an event, `Left` and `Right` move the cursor, `[` and `]` scroll back and forward, `Esc` hides the cursor and returns to live |
 | `go -C examples run ./multidemo` | CPU, MEM and NET series | `t` line width, `m` lines or braille |
 | `go -C examples run ./rxtxdemo` | Network RX and TX around a zero baseline | `w` line width, `s` smoothing, `m` lines or braille, `f` fill, `t` tinted fill, `z` zero baseline, `y` symmetric range |
 | `go -C examples run ./cpulive` | CPU and RAM of this machine, read with gopsutil | `t` line width, `m` lines or braille |
@@ -47,7 +47,7 @@ The PNG files in `assets/` come from `cmd/gen-shots`, which prints one chart per
 go run ./cmd/gen-shots -mode xaxis | env PATH=/usr/bin:/bin "$(command -v freeze)" -o assets/xaxis.png
 ```
 
-- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds`, `logscale` and `rightaxis`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
+- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds`, `logscale`, `rightaxis` and `cursor`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
 - The data is generated with fixed random seeds, so a mode draws the same chart on every run.
 - `env PATH=/usr/bin:/bin` hides `rsvg-convert` from freeze. When librsvg is installed, freeze converts the image with `rsvg-convert`, which ignores freeze's embedded monospace font and draws the chart in a proportional font.
 - `freeze --execute` hangs in a non-interactive shell; pipe the output in instead.
@@ -79,6 +79,7 @@ git push origin v0.8.0
 | `logscale.go` | `SetLogScale`, the log range fix-ups and the plot-space `Chart` for renderers |
 | `rightaxis.go` | `Axis`, `WithRightAxis`, `SetSeriesRightAxis`, and the mapping of right-axis series into the plot |
 | `threshold.go` | `Threshold`, `SetThresholds`, threshold lines and row styles |
+| `cursor.go` | `SetCursor`, `SetOffset`, `CursorValues`, `CursorBox` |
 | `event.go` | Timeline events, `EventsBox` |
 | `legend.go` | `Legend`, `LegendBox` |
 | `xaxis.go` | The time axis for `WithXAxis` and `WithXAxisAt` |
