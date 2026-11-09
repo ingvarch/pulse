@@ -50,12 +50,12 @@ go -C examples run ./livedemo
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md): install, the sliding window, missing points, several series, styling and themes, legends, runtime settings
+- [Getting Started](docs/getting-started.md): install, the sliding window, history and resizing, missing points, several series, styling and themes, legends, runtime settings
 - [Rendering Modes](docs/rendering-modes.md): box-drawing curves, braille dots, area fill
 - [Axes and Grid](docs/axes-and-grid.md): Y ticks, the grid, the time axis, symmetric range, label formatters
 - [Zero-Crossing and RX/TX](docs/zero-crossing-fill.md): zero baseline, mirrored series, negative styles, byte-rate labels
 - [Timeline Events](docs/timeline-events.md): deploys and alerts on the chart, the events card
-- [Bubble Tea Integration](docs/bubbletea.md): a chart inside a Bubble Tea model, ticks, hotkeys
+- [Bubble Tea Integration](docs/bubbletea.md): a chart inside a Bubble Tea model, ticks, hotkeys, resizing
 - [Development](docs/development.md): checks, demos, screenshots, releases, project structure
 - [API reference](https://pkg.go.dev/github.com/ingvarch/pulse) on pkg.go.dev
 

@@ -16,6 +16,15 @@ import (
 
 type tickMsg time.Time
 
+const (
+	// Columns taken by the Y labels and the axis, and lines taken by the header,
+	// the legend and a small events box.
+	chartMargin, chartLines = 6, 9
+	minChartW, minChartH    = 10, 4
+	historyPoints           = 1000
+	prefillPoints           = 300
+)
+
 type model struct {
 	chart  *pulse.Model
 	preset theme.Preset
@@ -78,6 +87,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
+	case tea.WindowSizeMsg:
+		m.chart.SetSize(max(msg.Width-chartMargin, minChartW), max(msg.Height-chartLines, minChartH))
+		return m, nil
 	case tickMsg:
 		m.step++
 		m.last = signal(m.step)
@@ -120,6 +132,7 @@ func main() {
 
 	lc := pulse.New(chartW, chartH,
 		pulse.WithRange(0, 100),
+		pulse.WithHistory(historyPoints),
 		pulse.WithTicks(0, 25, 50, 75, 100),
 		pulse.WithLineWidth(2),
 		pulse.WithTintedFill(true),
@@ -128,7 +141,7 @@ func main() {
 	)
 
 	// Pre-fill initial data for immediate graph rendering
-	initStep := chartW
+	initStep := prefillPoints
 	for i := 1; i <= initStep; i++ {
 		v := signal(i)
 		lc.PushSeries("signal", v)

@@ -47,13 +47,33 @@ func main() {
 
 ## Sliding Window
 
-`pulse.Model` maintains an internal sliding buffer equal to the chart's width (`w`). When you call `Push(val)` or `PushSeries(name, val)` beyond the width, older points automatically roll off, creating a smooth real-time stream.
+The chart shows the last `w` points of each series. When you call `Push(val)` or `PushSeries(name, val)` beyond the width, older points roll off, creating a smooth real-time stream.
 
 To query buffer lengths:
 ```go
 totalPoints := chart.Len()             // Default series
 cpuPoints   := chart.LenSeries("cpu")  // Named series
 ```
+
+`Len`, `LenSeries`, `SeriesData` and `Last` work on the points in the window.
+
+## History and Resizing
+
+`SetSize(w, h)` changes the plot size. It clamps `w` and `h` to at least 1, like `New`, and keeps the data. A height change moves the tick rows. The X axis and the vertical grid follow the new width.
+
+A series keeps up to `max(history, w)` points. Without `WithHistory` the history is 0, so the series keeps only the last `w` points: after a narrower chart is made wider again, the columns on the left stay empty. With a history, the points that left the window come back in the same columns relative to the newest point.
+
+```go
+chart := pulse.New(80, 12, pulse.WithHistory(500))
+
+chart.SetSize(40, 12)  // draws the last 40 points
+chart.SetSize(80, 12)  // draws the last 80 points again
+chart.SetHistory(1000) // change the history later
+```
+
+`SetSize` and `SetHistory` drop the oldest points when the capacity gets smaller. A negative history counts as 0.
+
+Events stay attached to their points. `VisibleEvents` returns the events inside the window. The chart removes an event only when it leaves the history, so an event that left a narrow window is back after widening.
 
 ## Missing Points
 
@@ -152,6 +172,8 @@ if val, ok := chart.Last("cpu"); ok {
 
 All styling and rendering options can be modified dynamically at runtime:
 ```go
+chart.SetSize(w, h)            // resize the plot, keeps the history
+chart.SetHistory(n)            // keep up to n points per series
 chart.SetGrid(true)            // toggle grid
 chart.SetXAxis(label)          // time labels under the plot (View adds 2 lines)
 chart.SetXAxisAt(label)        // time labels at the columns you choose

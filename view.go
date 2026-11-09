@@ -119,15 +119,16 @@ func (m *Model) View() string {
 		negativeStyles[idx] = m.SeriesNegativeStyle(name)
 		hasNegStyles[idx] = m.hasSeriesNegativeStyle(name)
 		if s, ok := m.series[name]; ok {
+			data := m.window(s)
 			isInverted := s.inverted || (name == "" && m.inverted)
 			if isInverted {
-				inv := make([]float64, len(s.data))
-				for i, val := range s.data {
+				inv := make([]float64, len(data))
+				for i, val := range data {
 					inv[i] = -val
 				}
 				seriesData[idx] = inv
 			} else {
-				seriesData[idx] = s.data
+				seriesData[idx] = data
 			}
 		}
 	}
