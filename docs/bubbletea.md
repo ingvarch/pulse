@@ -64,4 +64,4 @@ func (m model) View() tea.View {
 }
 ```
 
-See [examples/livedemo](file:///examples/livedemo/main.go) for a complete interactive implementation.
+See [examples/livedemo](../examples/livedemo/main.go) for a complete interactive implementation.
