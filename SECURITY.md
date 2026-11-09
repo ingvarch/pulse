@@ -2,19 +2,18 @@
 
 ## Supported Versions
 
-We support the latest release of Pulse.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| v0.1.x  | :white_check_mark: |
+Only the latest release of Pulse gets security fixes. See [Releases](https://github.com/ingvarch/pulse/releases).
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within Pulse, please do not report it publicly via GitHub issues.
+Do not report a vulnerability in a public issue. Use the private form instead: [Report a vulnerability](https://github.com/ingvarch/pulse/security/advisories/new). If you cannot use the form, email **ingvarch@gmail.com**.
 
-Instead, please send an email to **ingvarch@gmail.com** with details about the vulnerability. Please include:
-- A description of the issue and its potential impact.
+Please include:
+- A description of the issue and its impact.
 - Steps to reproduce or a proof of concept.
-- Any suggestions for remediation.
+- The Pulse version and Go version.
+- Any suggestions for a fix.
 
-We take security seriously and will respond promptly to investigate and resolve reported issues.
+## What Happens Next
+
+Reports get a prompt reply. Once the issue is confirmed, the fix goes into a new release and the advisory is published.
