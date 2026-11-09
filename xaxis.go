@@ -39,7 +39,7 @@ func (m *Model) xAxisCols() []int {
 func (m *Model) xAxisLabels() []placedLabel {
 	var placed []placedLabel
 	for _, col := range m.xAxisCols() {
-		text := m.xAxisLabel(m.w - 1 - col)
+		text := m.xAxisLabel(m.ageOfCol(col))
 		width := lipgloss.Width(text)
 		if width == 0 {
 			continue

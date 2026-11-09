@@ -34,7 +34,7 @@ chart := pulse.New(80, 13,
 ## Lines and Labels
 
 - The line is on the row of its value, the same row a tick at that value gets.
-- In draw order, front to back: the series, events, the threshold line, then the grid and the zero baseline. In a gap the line shows.
+- In draw order, front to back: the series line, events, the [cursor](cursor-and-scrolling.md#drawing-order), the area fill, the threshold line, then the zero baseline and the grid. In `ModeBraille` the fill dots also cover events and the cursor. In a gap the line shows.
 - Several thresholds on one row: the one with the highest `Value` wins. With equal values, the first in the list wins.
 - A threshold outside `Min()` to `Max()` draws no line.
 - The label is right-aligned at the end of the line, in the threshold style, and the series covers it like the line.

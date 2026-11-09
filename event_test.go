@@ -155,3 +155,24 @@ func TestLineChart_EventDefaultColor(t *testing.T) {
 		}
 	}
 }
+
+func TestEvent_AgesOneStepPerTick(t *testing.T) {
+	both := pulse.New(20, 5)
+	both.Push(0)
+	both.PushSeries("a", 0)
+	both.AddEvent(pulse.Event{})
+	both.Push(1)
+	both.PushSeries("a", 1)
+
+	styled := pulse.New(20, 5)
+	styled.SetSeriesStyle("", lipgloss.NewStyle())
+	styled.PushSeries("a", 0)
+	styled.AddEvent(pulse.Event{})
+	styled.PushSeries("a", 1)
+
+	for name, m := range map[string]*pulse.Model{"default and named": both, "named only": styled} {
+		if ev := m.VisibleEvents(); len(ev) != 1 || ev[0].Age != 1 {
+			t.Errorf("%s: events %v, want one event at age 1", name, ev)
+		}
+	}
+}

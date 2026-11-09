@@ -28,7 +28,7 @@ fmt.Println(chart.Min(), chart.Max()) // 0 800
   <img src="../assets/autorange.png" alt="Throughput chart whose range follows a spike" width="100%" />
 </p>
 
-- `View` computes the range from the finite values in the visible window (the last `Width()` points) of all series except those on the [right axis](#right-axis), the default series included. A spike leaves the range when it scrolls out of the window.
+- `View` computes the range from the finite values in the visible window (the last `Width()` points, or the points the [offset](cursor-and-scrolling.md#offset) scrolled to) of all series except those on the [right axis](#right-axis), the default series included. A spike leaves the range when it scrolls out of the window.
 - Gaps (NaN, +Inf, -Inf) are ignored.
 - 0 always stays inside the range. A chart of positive values starts at 0. (On a [log scale](#logarithmic-scale) the range is in whole decades instead.)
 - The bounds are rounded out with `scale.NiceRange`, so the top and the bottom are tick values and both get a label.
@@ -171,9 +171,11 @@ Labels sit at the left edge, the right edge, and at the quarter columns (`w / 4`
   <img src="../assets/xaxis.png" alt="Time axis under a 7-day CPU chart with a gap" width="100%" />
 </p>
 
+The label function always gets the real age of a column, also while the view is scrolled. See [Cursor and Scrolling](cursor-and-scrolling.md).
+
 ## Labels at Chosen Columns (`WithXAxisAt`)
 
-`WithXAxis` puts labels at the edges and the quarter columns, so they show whatever time falls there, for example `12:45  18:33  00:37  06:41  now`. `pulse.WithXAxisAt(label)` draws the same two rows, but asks `label` for every column, ages 0 to `w-1`. A non-empty text proposes a label at that column. To get round times, return text only for the column that holds one:
+`WithXAxis` puts labels at the edges and the quarter columns, so they show whatever time falls there, for example `12:45  18:33  00:37  06:41  now`. `pulse.WithXAxisAt(label)` draws the same two rows, but asks `label` for every column, ages `offset` to `offset+w-1` (0 to `w-1` at offset 0). A non-empty text proposes a label at that column. To get round times, return text only for the column that holds one:
 
 ```go
 var newest time.Time        // time of the newest point

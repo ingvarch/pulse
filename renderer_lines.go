@@ -290,15 +290,20 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			ru := runeForMask(glyphWidth, glyphSmooth, lineMask[r][col])
 			return st.Render(string(ru)), true
 		}
-		if hasEvent {
+		if cursor := col == ctx.CursorCol; hasEvent || cursor {
 			var bg color.Color
 			if fillMask[r][col] && tinted {
 				isNeg := ctx.isNegativeRow(r, c.Max())
 				baseStyle := styleFor(fillOwner[r][col], r, isNeg, ctx, fallback)
 				bg = tintColorFor(c, baseStyle)
 			}
-			if s, ok := renderEventGuideline(ve, bg); ok {
-				return s, true
+			if hasEvent {
+				if s, ok := renderEventGuideline(ve, bg); ok {
+					return s, true
+				}
+			}
+			if cursor {
+				return renderCursor(c, bg), true
 			}
 		}
 		if isZero && r == ctx.ZeroRow {

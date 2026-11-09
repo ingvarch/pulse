@@ -181,6 +181,7 @@ func (m *Model) View() string {
 		RightAxis:      onRight,
 		GridStyle:      gridStyle,
 		ZeroRow:        zeroRow,
+		CursorCol:      m.cursorCol(),
 	}
 
 	ctx.ThresholdLines, ctx.ThresholdStyles = m.thresholdCells()
