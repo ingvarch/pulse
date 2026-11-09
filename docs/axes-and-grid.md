@@ -28,7 +28,7 @@ fmt.Println(chart.Min(), chart.Max()) // 0 800
   <img src="../assets/autorange.png" alt="Throughput chart whose range follows a spike" width="100%" />
 </p>
 
-- `View` computes the range from the finite values in the visible window (the last `Width()` points) of all series, the default series included. A spike leaves the range when it scrolls out of the window.
+- `View` computes the range from the finite values in the visible window (the last `Width()` points) of all series except those on the [right axis](#right-axis), the default series included. A spike leaves the range when it scrolls out of the window.
 - Gaps (NaN, +Inf, -Inf) are ignored.
 - 0 always stays inside the range. A chart of positive values starts at 0. (On a [log scale](#logarithmic-scale) the range is in whole decades instead.)
 - The bounds are rounded out with `scale.NiceRange`, so the top and the bottom are tick values and both get a label.
@@ -67,9 +67,44 @@ chart.PushSeries("p99", 300)
 - `WithTicks` works as on the linear scale: a tick at or below zero, or outside the range, gets no label. The label formatter gets the real value (10, 100, 1000), not the logarithm.
 - [Thresholds](thresholds.md) use the same mapping. A threshold with `Value <= 0` draws no line and colors nothing.
 - The fill goes down to the bottom row.
-- The zero baseline, the symmetric range (a fixed range stays as set, for example `1..1000`), inverted series, negative styles and zero-crossing fill are ignored on a log scale. An inverted series is drawn at its real positive values.
+- The zero baseline, the symmetric range (a fixed range stays as set, for example `1..1000`), inverted series, negative styles and zero-crossing fill are ignored on a log scale. An inverted series is drawn at its real positive values, except on the [right axis](#right-axis).
 - Events, the time axis, gaps and legends work as on the linear scale.
 - A custom renderer gets a `Chart` whose `Min()` and `Max()` are `0` and the number of decades, and whose series values are `log10(v / lo)`, where `lo` is the bottom of the range.
+
+## Right Axis
+
+`WithRightAxis` adds a second Y axis on the right, with its own range and labels. Use it for two metrics on different scales, such as CPU in percent and requests per second.
+
+```go
+chart := pulse.New(80, 13,
+	pulse.WithRange(0, 100),
+	pulse.WithRightAxis(pulse.Axis{
+		Min: 0, Max: 5000,
+		Formatter: func(v float64) string { return fmt.Sprintf("%.0f/s", v) },
+	}),
+)
+chart.PushSeries("cpu", 42)
+chart.PushSeries("requests", 2100)
+chart.SetSeriesRightAxis("requests", true)
+```
+
+<p align="center">
+  <img src="../assets/rightaxis.png" alt="CPU on the left axis and requests per second on the right axis" width="100%" />
+</p>
+
+- `Axis` has `Min`, `Max`, optional `Ticks` and an optional `Formatter`. Without ticks, `scale.NiceTicks` picks them. Without a formatter, `scale.FormatTick` formats the labels.
+- `WithSeriesRightAxis(name)` or `SetSeriesRightAxis(name, on)` plots a series against the right range. `SeriesRightAxis(name)` and `RightAxis()` read the settings back. A series flagged for the right axis stays on the left until an axis is set.
+- `SetRightAxis` ignores a call with a NaN or infinite bound. A `Min` above `Max` is swapped, and equal bounds widen to `Min..Min+1`. The right range is fixed and linear, also on a log scale.
+- The plot stays `w` wide. Every line of `View` gets one cell for the axis line plus a label column as wide as the widest right label, so all lines have the same width. The height does not change. The time axis rows keep their alignment with the plot and are padded to the same width.
+- A right label sits on the row of its own tick. A tick outside the right range gets no label, and when two ticks share a row the higher one wins, as on the left.
+- The horizontal grid follows the left ticks only, so a right label can sit on a row without a grid line.
+- `Legend` and `LegendBox` add ` →` after the name of a right-axis series.
+- Values outside the right range are clamped to the top or bottom row. Gaps stay gaps. An inverted series is negated before it is mapped, also on a log scale.
+- [Auto range](#automatic-range), the zero baseline and the symmetric range use the left axis only. [Thresholds](thresholds.md) and threshold colors do not color a right-axis series, and neither do negative styles: its cells below the zero row keep the series style.
+- The fill of a right-axis series goes down to the same baseline row as the fill of a left series.
+- A custom renderer gets right-axis values mapped into the left range in `ctx.SeriesData` and `Chart.SeriesData`. `SeriesInverted` is false for them, and `ctx.RightAxis` marks them.
+- When the time axis is on, its axis row ends with `┘` under the right axis line.
+- Both render modes, events, the time axis, gaps, history and `SetSize` work as without a right axis.
 
 ## Custom Ticks
 

@@ -11,7 +11,7 @@ func (m *Model) Legend() string {
 	parts := make([]string, 0, len(m.order))
 	for _, name := range m.order {
 		swatch := m.SeriesStyle(name).Render("■")
-		parts = append(parts, swatch+" "+name)
+		parts = append(parts, swatch+" "+m.legendName(name))
 	}
 	return strings.Join(parts, "  ")
 }
@@ -28,7 +28,7 @@ func (m *Model) LegendBox() string {
 		if v, ok := m.Last(name); ok {
 			value = m.formatValue(v)
 		}
-		lines = append(lines, swatch+" "+m.axisStyle.Render(name+" "+value))
+		lines = append(lines, swatch+" "+m.axisStyle.Render(m.legendName(name)+" "+value))
 	}
 	return lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).

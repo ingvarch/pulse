@@ -28,6 +28,9 @@ var DefaultTintColor color.Color = lipgloss.Color("#1f2335")
 //
 // On a log scale, Render gets a Chart in plot space: Min 0, Max log10(hi/lo) for the drawn range lo..hi,
 // series values log10(v/lo) with non-positive values as NaN, and ZeroBaseline, Symmetric and SeriesInverted false.
+//
+// A series on the right axis comes with its values mapped linearly into the range Min..Max this Chart reports
+// (the plot space on a log scale), negated when inverted, with SeriesInverted false. RenderContext.RightAxis marks it.
 type Chart interface {
 	Width() int
 	Height() int
@@ -68,6 +71,9 @@ type RenderContext struct {
 	SeriesData     [][]float64
 	GridStyle      lipgloss.Style
 	ZeroRow        int
+	// RightAxis marks the series drawn against the right axis, in Names order.
+	// Their values are already mapped into the left range, and threshold and negative styles skip them.
+	RightAxis []bool
 	// ThresholdStyles maps a row to the threshold style of series cells in it. It is empty when threshold colors are off.
 	ThresholdStyles map[int]lipgloss.Style
 	// ThresholdLines maps a row to its threshold line: one rendered cell per plot column.
@@ -181,12 +187,14 @@ func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)
 
 // styleFor picks the style of a series cell in row r: the negative style of its series,
 // else the threshold style of the row, else the series style.
+// A right-axis series always gets its own style.
 func styleFor(owner, r int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
 	known := owner >= 0 && owner < len(ctx.Styles)
-	if known && isNeg && owner < len(ctx.HasNegStyles) && ctx.HasNegStyles[owner] {
+	right := owner >= 0 && owner < len(ctx.RightAxis) && ctx.RightAxis[owner]
+	if known && !right && isNeg && owner < len(ctx.HasNegStyles) && ctx.HasNegStyles[owner] {
 		return ctx.NegativeStyles[owner]
 	}
-	if st, ok := ctx.ThresholdStyles[r]; ok {
+	if st, ok := ctx.ThresholdStyles[r]; ok && !right {
 		return st
 	}
 	if known {

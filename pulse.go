@@ -51,6 +51,9 @@ type Model struct {
 	hasNegStyle   bool
 	inverted      bool
 
+	rightAxis    Axis
+	hasRightAxis bool
+
 	thresholds      []Threshold
 	thresholdColors bool
 }
@@ -62,6 +65,7 @@ type series struct {
 	negativeStyle lipgloss.Style
 	hasNegStyle   bool
 	inverted      bool
+	rightAxis     bool
 }
 
 // New creates a chart for a w x h cells plot area.
@@ -274,14 +278,17 @@ func (m *Model) LineWidth() int {
 // SetTicks dynamically sets explicit tick values for the Y axis.
 // Ticks are copied, sorted ascending, and deduplicated.
 func (m *Model) SetTicks(ticks ...float64) {
+	m.customTicks = sortedTicks(ticks)
+}
+
+// sortedTicks returns a sorted, deduplicated copy of ticks, or nil when it is empty.
+func sortedTicks(ticks []float64) []float64 {
 	if len(ticks) == 0 {
-		m.customTicks = nil
-		return
+		return nil
 	}
-	cp := make([]float64, len(ticks))
-	copy(cp, ticks)
+	cp := slices.Clone(ticks)
 	slices.Sort(cp)
-	m.customTicks = slices.Compact(cp)
+	return slices.Compact(cp)
 }
 
 // SetLabelFormatter dynamically updates the Y-axis label formatter.

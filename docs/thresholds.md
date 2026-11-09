@@ -52,6 +52,7 @@ chart := pulse.New(80, 13,
 - A threshold above `Max()` colors nothing. A threshold below `Min()` colors every row.
 - The color is chosen per terminal row, in both modes, so a point in the same row as the limit takes its color.
 - An inverted series is colored where it is drawn.
+- A series on the [right axis](axes-and-grid.md#right-axis) is not colored by thresholds.
 
 ## Range
 

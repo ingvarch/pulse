@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale | rightaxis")
 	flag.Parse()
 
 	switch *mode {
@@ -44,6 +44,8 @@ func main() {
 		renderThresholds()
 	case "logscale":
 		renderLogScale()
+	case "rightaxis":
+		renderRightAxis()
 	}
 }
 
@@ -532,6 +534,52 @@ func renderLogScale() {
 		Render("REQUEST LATENCY (LOG SCALE)")
 
 	content := fmt.Sprintf("%s\n\n%s\n%s", header, lc.View(), lc.LegendBox())
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(content)
+
+	fmt.Println(box)
+}
+
+func renderRightAxis() {
+	preset := theme.TokyoNight()
+
+	lc := pulse.New(80, 13,
+		pulse.WithRange(0, 100),
+		pulse.WithTicks(0, 25, 50, 75, 100),
+		pulse.WithRightAxis(pulse.Axis{
+			Min: 0, Max: 5000,
+			Ticks:     []float64{0, 1250, 2500, 3750, 5000},
+			Formatter: func(v float64) string { return fmt.Sprintf("%.0f/s", v) },
+		}),
+		pulse.WithLineWidth(1),
+		pulse.WithFill(false),
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithSeriesStyle("cpu", lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(1)))),
+		pulse.WithSeriesStyle("requests", lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(4)))),
+	)
+
+	rng := rand.New(rand.NewSource(31))
+	for i := 0; i < 80; i++ {
+		rps := 2400 + 1200*math.Sin(float64(i)*0.12) + (rng.Float64()-0.5)*300
+		if i >= 50 && i < 62 {
+			rps += 1100
+		}
+		cpu := 14 + rps/5000*60 + (rng.Float64()-0.5)*6
+		lc.PushSeries("cpu", math.Max(0, math.Min(100, cpu)))
+		lc.PushSeries("requests", math.Max(0, math.Min(5000, rps)))
+	}
+	lc.SetSeriesRightAxis("requests", true)
+
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Render("CPU (LEFT) AND REQUESTS PER SECOND (RIGHT)")
+
+	content := fmt.Sprintf("%s\n\n%s\n%s", header, lc.View(), lc.Legend())
 
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
