@@ -17,6 +17,7 @@ func WithRange(min, max float64) Option {
 
 // WithAutoRange fits the Y range to the finite values visible in the window, across all series.
 // The bounds are rounded out to tick values from scale.NiceRange and 0 stays inside.
+// On a log scale the bounds widen to whole decades instead; see SetLogScale.
 // WithRange turns it off; WithAutoRange(true) given after WithRange turns it back on.
 func WithAutoRange(on bool) Option {
 	return func(m *Model) { m.SetAutoRange(on) }
@@ -165,4 +166,9 @@ func WithThresholds(ts ...Threshold) Option {
 // WithThresholdColors colors series lines and fill by the thresholds they reach.
 func WithThresholdColors(on bool) Option {
 	return func(m *Model) { m.SetThresholdColors(on) }
+}
+
+// WithLogScale maps values to rows by their base-10 logarithm, as SetLogScale does.
+func WithLogScale(on bool) Option {
+	return func(m *Model) { m.SetLogScale(on) }
 }

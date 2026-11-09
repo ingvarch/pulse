@@ -20,6 +20,7 @@ Pulse is a Go library that draws live line charts in the terminal. It is for dev
 - Area fill under the curves, stippled, tinted or solid, over a grid aligned to the Y ticks.
 - A Y range that fits the visible data, for metrics without a fixed scale.
 - Charts around zero: a zero baseline, mirrored series such as network RX and TX, a symmetric range and byte-rate labels.
+- Logarithmic Y scale for values that span orders of magnitude.
 - Thresholds: dashed limit lines with labels, and series colored where they cross a limit.
 - Events such as deploys and alerts, pinned to points on the timeline with a marker and a vertical line.
 - An optional time axis with labels from your own function, at the quarter columns or at the columns you choose.
@@ -54,7 +55,7 @@ go -C examples run ./livedemo
 
 - [Getting Started](docs/getting-started.md): install, the sliding window, history and resizing, missing points, several series, styling and themes, legends, runtime settings
 - [Rendering Modes](docs/rendering-modes.md): box-drawing curves, braille dots, area fill
-- [Axes and Grid](docs/axes-and-grid.md): Y ticks, the grid, the time axis, automatic range, symmetric range, label formatters
+- [Axes and Grid](docs/axes-and-grid.md): Y ticks, the grid, the time axis, automatic range, logarithmic scale, symmetric range, label formatters
 - [Zero-Crossing and RX/TX](docs/zero-crossing-fill.md): zero baseline, mirrored series, negative styles, byte-rate labels
 - [Thresholds](docs/thresholds.md): limit lines, labels, colors by threshold
 - [Timeline Events](docs/timeline-events.md): deploys and alerts on the chart, the events card

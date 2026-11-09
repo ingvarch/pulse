@@ -43,14 +43,18 @@ func (m *Model) thresholdCells() (lines map[int][]string, styles map[int]lipglos
 	lines, styles = map[int][]string{}, map[int]lipgloss.Style{}
 	ts := slices.Clone(m.thresholds)
 	slices.SortStableFunc(ts, func(a, b Threshold) int { return cmp.Compare(b.Value, a.Value) })
+	lo, hi := m.bounds()
 	for _, t := range ts {
-		if t.Line && t.Value >= m.min && t.Value <= m.max {
+		if m.logScale && t.Value <= 0 {
+			continue
+		}
+		if t.Line && t.Value >= lo && t.Value <= hi {
 			row := m.tickRow(t.Value)
 			if _, taken := lines[row]; !taken {
 				lines[row] = m.thresholdLine(t)
 			}
 		}
-		if m.thresholdColors && t.Value <= m.max {
+		if m.thresholdColors && t.Value <= hi {
 			for r := m.tickRow(t.Value); r >= 0; r-- {
 				if _, taken := styles[r]; !taken {
 					styles[r] = t.Style

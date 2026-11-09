@@ -47,7 +47,7 @@ The PNG files in `assets/` come from `cmd/gen-shots`, which prints one chart per
 go run ./cmd/gen-shots -mode xaxis | env PATH=/usr/bin:/bin "$(command -v freeze)" -o assets/xaxis.png
 ```
 
-- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange` and `thresholds`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
+- The modes are `hero`, `quickstart`, `styled`, `braille`, `rxtx`, `events`, `fill`, `zerocross`, `xaxis`, `xaxisat`, `autorange`, `thresholds` and `logscale`. Each one writes `assets/<mode>.png`, except `xaxisat`, which writes `assets/xaxis-at.png`.
 - The data is generated with fixed random seeds, so a mode draws the same chart on every run.
 - `env PATH=/usr/bin:/bin` hides `rsvg-convert` from freeze. When librsvg is installed, freeze converts the image with `rsvg-convert`, which ignores freeze's embedded monospace font and draws the chart in a proportional font.
 - `freeze --execute` hangs in a non-interactive shell; pipe the output in instead.
@@ -76,11 +76,12 @@ git push origin v0.8.0
 | `renderer.go` | The `Renderer` interface, grid and fill shared by both modes |
 | `renderer_lines.go` | `ModeLines`: box-drawing curves |
 | `renderer_braille.go` | `ModeBraille`: braille dots with Catmull-Rom splines |
+| `logscale.go` | `SetLogScale`, the log range fix-ups and the plot-space `Chart` for renderers |
 | `threshold.go` | `Threshold`, `SetThresholds`, threshold lines and row styles |
 | `event.go` | Timeline events, `EventsBox` |
 | `legend.go` | `Legend`, `LegendBox` |
 | `xaxis.go` | The time axis for `WithXAxis` and `WithXAxisAt` |
-| `scale/` | `NiceTicks`, `NiceRange`, tick and byte-rate formatters |
+| `scale/` | `NiceTicks`, `NiceRange`, `LogTicks`, `LogRange`, tick and byte-rate formatters |
 | `theme/` | The Tokyo Night preset and value colors |
 | `examples/` | The demos, a separate module with its own `go.mod` |
 | `cmd/gen-shots/` | The screenshot generator |

@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds | logscale")
 	flag.Parse()
 
 	switch *mode {
@@ -42,6 +42,8 @@ func main() {
 		renderAutoRange()
 	case "thresholds":
 		renderThresholds()
+	case "logscale":
+		renderLogScale()
 	}
 }
 
@@ -488,6 +490,48 @@ func renderXAxisShot(title string, axis pulse.Option) {
 		Render(title)
 
 	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(content)
+
+	fmt.Println(box)
+}
+
+func renderLogScale() {
+	preset := theme.TokyoNight()
+
+	lc := pulse.New(80, 13,
+		pulse.WithLogScale(true),
+		pulse.WithAutoRange(true),
+		pulse.WithLineWidth(1),
+		pulse.WithFill(false),
+		pulse.WithGrid(true),
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithLabelFormatter(func(v float64) string { return scale.FormatTick(v) + " ms" }),
+		pulse.WithSeriesStyle("p50", lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(0)))),
+		pulse.WithSeriesStyle("p99", lipgloss.NewStyle().Foreground(lipgloss.Color(theme.SeriesColor(4)))),
+	)
+
+	rng := rand.New(rand.NewSource(23))
+	for i := 0; i < 80; i++ {
+		p50 := 12 + 6*math.Sin(float64(i)*0.2) + (rng.Float64()-0.5)*4
+		p99 := p50 * (4 + 2*rng.Float64())
+		if i >= 30 && i < 38 {
+			p99 += 300 * math.Sin(float64(i-30)/8*math.Pi)
+		}
+		lc.PushSeries("p50", p50)
+		lc.PushSeries("p99", p99)
+	}
+
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Render("REQUEST LATENCY (LOG SCALE)")
+
+	content := fmt.Sprintf("%s\n\n%s\n%s", header, lc.View(), lc.LegendBox())
 
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

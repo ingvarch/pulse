@@ -30,16 +30,46 @@ fmt.Println(chart.Min(), chart.Max()) // 0 800
 
 - `View` computes the range from the finite values in the visible window (the last `Width()` points) of all series, the default series included. A spike leaves the range when it scrolls out of the window.
 - Gaps (NaN, +Inf, -Inf) are ignored.
-- 0 always stays inside the range. A chart of positive values starts at 0.
+- 0 always stays inside the range. A chart of positive values starts at 0. (On a [log scale](#logarithmic-scale) the range is in whole decades instead.)
 - The bounds are rounded out with `scale.NiceRange`, so the top and the bottom are tick values and both get a label.
 - An inverted series counts with its sign flipped, as it is drawn.
 - With `WithSymmetric(true)` the range is `[-a, +a]`, where `a` is the largest absolute value.
 - With no finite values, or with a flat line at 0, the range is `0..1` (`-1..1` when symmetric).
 - With `WithTicks`, auto range still sets the range. Only the ticks inside it get a label.
-- `Min()` and `Max()` return the range of the last `View`, and the initial range before the first `View`. Renderers draw against it.
+- `Min()` and `Max()` return the range of the last `View`, and the initial range before the first `View`. Renderers draw against it, except on a [log scale](#logarithmic-scale).
 - `WithRange` and `SetRange` turn auto range off. `WithAutoRange(true)` after `WithRange` turns it on again. `WithSymmetric` and `SetSymmetric` leave it as it is.
 - `SetAutoRange(false)` keeps the range of the last render. `AutoRange()` reports the state.
 - The label column gets wider when a longer label appears, for example when `750` becomes `1000`. To keep the chart width fixed, set `WithLabelWidth` to the widest label you expect.
+
+## Logarithmic Scale
+
+`WithLogScale(true)` maps values to rows by their base-10 logarithm. Use it for metrics that span orders of magnitude, such as latency, where a p99 is a hundred times the median and a linear scale presses the normal traffic against the bottom row.
+
+```go
+chart := pulse.New(80, 13,
+	pulse.WithLogScale(true),
+	pulse.WithAutoRange(true),
+	pulse.WithLabelFormatter(func(v float64) string { return scale.FormatTick(v) + " ms" }),
+)
+chart.PushSeries("p50", 12)
+chart.PushSeries("p99", 300)
+```
+
+<p align="center">
+  <img src="../assets/logscale.png" alt="Latency chart on a log scale with p50 and p99 series" width="100%" />
+</p>
+
+- `SetLogScale(on)` switches it at run time and `LogScale()` reports it. Turning it off restores the linear chart with the stored range unchanged.
+- Values at or below zero are drawn as gaps, like NaN. `Push`, `Last` and `SeriesData` keep the real values.
+- Both range bounds must be above zero. A non-positive minimum becomes `max / 10`. When both bounds are non-positive, the range is `1..10`. `Min()` and `Max()` still return the stored range: the fix-ups apply when drawing.
+- With [auto range](#automatic-range), the range covers the positive finite values in the window, rounded out to whole decades with `scale.LogRange`: 5 and 300 give `1..1000`. When both ends are the same power, the top is ten times the bottom. With no positive values the range is `1..10`.
+- Ticks are the powers of ten inside the range. With fewer than two, the 2x and 5x values of each decade are added, so `2..8` gets 2 and 5. With more than the chart height allows, every k-th tick is kept, counted from the lowest power of ten. `scale.LogTicks` computes them.
+- `WithTicks` works as on the linear scale: a tick at or below zero, or outside the range, gets no label. The label formatter gets the real value (10, 100, 1000), not the logarithm.
+- [Thresholds](thresholds.md) use the same mapping. A threshold with `Value <= 0` draws no line and colors nothing.
+- The fill goes down to the bottom row.
+- The zero baseline, the symmetric range (a fixed range stays as set, for example `1..1000`), inverted series, negative styles and zero-crossing fill are ignored on a log scale. An inverted series is drawn at its real positive values.
+- Events, the time axis, gaps and legends work as on the linear scale.
+- A custom renderer gets a `Chart` whose `Min()` and `Max()` are `0` and the number of decades, and whose series values are `log10(v / lo)`, where `lo` is the bottom of the range.
 
 ## Custom Ticks
 

@@ -11,7 +11,11 @@ import (
 
 // tickRow returns the terminal row index (0 at top to h-1 at bottom) for value v.
 func (m *Model) tickRow(v float64) int {
-	return tickRowOf(m.h, m.min, m.max, v)
+	lo, hi := m.bounds()
+	if !m.logScale {
+		return tickRowOf(m.h, lo, hi, v)
+	}
+	return tickRowOf(m.h, 0, logSpan(lo, hi), logPlot(lo, v))
 }
 
 // maxGridTicks calculates an appropriate grid tick count based on chart height.
@@ -31,7 +35,11 @@ func (m *Model) gridTicks() []float64 {
 	if len(m.customTicks) > 0 {
 		return m.customTicks
 	}
-	return scale.NiceTicks(m.min, m.max, m.maxGridTicks())
+	lo, hi := m.bounds()
+	if m.logScale {
+		return scale.LogTicks(lo, hi, m.maxGridTicks())
+	}
+	return scale.NiceTicks(lo, hi, m.maxGridTicks())
 }
 
 func (m *Model) formatValue(v float64) string {
@@ -56,18 +64,24 @@ func (m *Model) View() string {
 	for idx, name := range names {
 		if s, ok := m.series[name]; ok {
 			data := m.window(s)
-			if s.inverted || (name == "" && m.inverted) {
+			if !m.logScale && (s.inverted || (name == "" && m.inverted)) {
 				data = negated(data)
 			}
 			seriesData[idx] = data
 		}
 	}
 	if m.autoRange {
-		m.min, m.max = m.fitRange(seriesData)
+		if m.logScale {
+			m.min, m.max = fitLogRange(seriesData)
+		} else {
+			m.min, m.max = m.fitRange(seriesData)
+		}
+		m.rangeMin, m.rangeMax = m.min, m.max
 	}
+	lo, hi := m.bounds()
 
 	ticks := m.gridTicks()
-	if m.zeroBaseline && m.min <= 0 && m.max >= 0 {
+	if m.zeroBaseline && !m.logScale && m.min <= 0 && m.max >= 0 {
 		hasZero := false
 		for _, t := range ticks {
 			if t == 0 {
@@ -84,7 +98,7 @@ func (m *Model) View() string {
 	rowLabel := map[int]string{}
 	for i := len(ticks) - 1; i >= 0; i-- {
 		t := ticks[i]
-		if isGap(t) || t < m.min || t > m.max {
+		if isGap(t) || t < lo || t > hi {
 			continue
 		}
 		row := m.tickRow(t)
@@ -105,7 +119,7 @@ func (m *Model) View() string {
 	labelStyle := m.axisStyle.Width(labelWidth).Align(lipgloss.Right)
 
 	zeroRow := -1
-	if m.min <= 0 && m.max >= 0 {
+	if !m.logScale && m.min <= 0 && m.max >= 0 {
 		zeroRow = m.tickRow(0)
 	}
 
@@ -123,6 +137,11 @@ func (m *Model) View() string {
 		for _, col := range m.vGridCols(placed) {
 			vGrid[col] = true
 		}
+	}
+
+	var chart Chart = m
+	if m.logScale {
+		seriesData, chart = m.toLogPlot(names, seriesData)
 	}
 
 	styles := make([]lipgloss.Style, len(names))
@@ -156,7 +175,7 @@ func (m *Model) View() string {
 	if r == nil {
 		r = LinesRenderer{}
 	}
-	out := r.Render(m, ctx)
+	out := r.Render(chart, ctx)
 	if m.xAxisLabel == nil {
 		return out
 	}

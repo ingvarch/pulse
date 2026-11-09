@@ -57,6 +57,8 @@ chart := pulse.New(80, 13,
 
 Thresholds do not change the Y range, also with [auto range](axes-and-grid.md#automatic-range). Set a range that holds them, or their lines do not show.
 
+On a [log scale](axes-and-grid.md#logarithmic-scale) thresholds follow the log mapping, and a threshold with `Value <= 0` draws no line and colors nothing. The rules above use the drawn range, which can differ from `Min()` and `Max()`: with `WithRange(0, 1000)` the chart draws `100..1000`, so a threshold at 50 draws no line.
+
 ## Modes
 
 Thresholds work in `ModeLines` and `ModeBraille`, with gaps, the zero baseline, the time axis and events.
