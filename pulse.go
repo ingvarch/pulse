@@ -47,6 +47,9 @@ type Model struct {
 	negativeStyle lipgloss.Style
 	hasNegStyle   bool
 	inverted      bool
+
+	thresholds      []Threshold
+	thresholdColors bool
 }
 
 type series struct {

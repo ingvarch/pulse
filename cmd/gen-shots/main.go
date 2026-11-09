@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange")
+	mode := flag.String("mode", "hero", "hero | quickstart | styled | braille | rxtx | events | fill | zerocross | xaxis | xaxisat | autorange | thresholds")
 	flag.Parse()
 
 	switch *mode {
@@ -40,6 +40,8 @@ func main() {
 		renderXAxisAt()
 	case "autorange":
 		renderAutoRange()
+	case "thresholds":
+		renderThresholds()
 	}
 }
 
@@ -399,6 +401,48 @@ func renderAutoRange() {
 		Bold(true).
 		Foreground(lipgloss.Color("#c0caf5")).
 		Render("NETWORK THROUGHPUT (AUTO RANGE)")
+
+	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(content)
+
+	fmt.Println(box)
+}
+
+func renderThresholds() {
+	preset := theme.TokyoNight()
+	warn := lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorWarn))
+	crit := lipgloss.NewStyle().Foreground(lipgloss.Color(theme.ColorCrit))
+
+	lc := pulse.New(80, 13,
+		pulse.WithRange(0, 100),
+		pulse.WithTicks(0, 25, 50, 75, 100),
+		pulse.WithLineWidth(1),
+		pulse.WithFill(true),
+		pulse.WithGrid(true),
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithLineStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7"))),
+		pulse.WithThresholds(
+			pulse.Threshold{Value: 80, Style: warn, Label: "warn 80", Line: true},
+			pulse.Threshold{Value: 90, Style: crit, Label: "crit 90", Line: true},
+		),
+		pulse.WithThresholdColors(true),
+	)
+
+	rng := rand.New(rand.NewSource(5))
+	for i := 0; i < 80; i++ {
+		v := 52 + 30*math.Sin(float64(i)*0.13) + 12*math.Sin(float64(i)*0.41) + (rng.Float64()-0.5)*6
+		lc.Push(math.Max(0, math.Min(100, v)))
+	}
+
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#c0caf5")).
+		Render("CPU (WARNING AT 80, CRITICAL AT 90)")
 
 	content := fmt.Sprintf("%s\n\n%s", header, lc.View())
 

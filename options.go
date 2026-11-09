@@ -156,3 +156,13 @@ func WithXAxis(label func(age int) string) Option {
 func WithXAxisAt(label func(age int) string) Option {
 	return func(m *Model) { m.SetXAxisAt(label) }
 }
+
+// WithThresholds sets the thresholds, as SetThresholds does.
+func WithThresholds(ts ...Threshold) Option {
+	return func(m *Model) { m.SetThresholds(ts...) }
+}
+
+// WithThresholdColors colors series lines and fill by the thresholds they reach.
+func WithThresholdColors(on bool) Option {
+	return func(m *Model) { m.SetThresholdColors(on) }
+}

@@ -150,6 +150,8 @@ func (m *Model) View() string {
 		ZeroRow:        zeroRow,
 	}
 
+	ctx.ThresholdLines, ctx.ThresholdStyles = m.thresholdCells()
+
 	r := m.renderer
 	if r == nil {
 		r = LinesRenderer{}
