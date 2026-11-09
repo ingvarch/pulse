@@ -41,7 +41,7 @@ func renderEventPin(ve VisibleEvent) string {
 		glyph = "▼"
 	}
 	st := ve.Event.Style
-	if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+	if st.GetForeground() == (lipgloss.NoColor{}) {
 		st = st.Foreground(DefaultEventColor).Bold(true)
 	}
 	return st.Render(glyph)
@@ -52,7 +52,7 @@ func renderEventGuideline(ve VisibleEvent, bg color.Color) (string, bool) {
 		return "", false
 	}
 	st := ve.Event.Style
-	if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
+	if st.GetForeground() == (lipgloss.NoColor{}) {
 		st = st.Foreground(DefaultEventColor).Faint(true)
 	}
 	if bg != nil && bg != (lipgloss.NoColor{}) {
@@ -123,15 +123,7 @@ func (m *Model) EventsBox() string {
 	}
 	lines := make([]string, 0, len(events))
 	for _, ve := range events {
-		glyph := ve.Event.Glyph
-		if glyph == "" {
-			glyph = "▼"
-		}
-		st := ve.Event.Style
-		if st.GetForeground() == nil || st.GetForeground() == (lipgloss.NoColor{}) {
-			st = st.Foreground(DefaultEventColor).Bold(true)
-		}
-		badge := st.Render(glyph)
+		badge := renderEventPin(ve)
 		label := ve.Event.Label
 		if label == "" {
 			label = "Event"

@@ -190,7 +190,7 @@ func tintColorFor(c Chart, st lipgloss.Style) color.Color {
 	if tc := c.TintColor(); tc != nil && tc != (lipgloss.NoColor{}) {
 		return tc
 	}
-	if bg := st.GetBackground(); bg != nil && bg != (lipgloss.NoColor{}) {
+	if bg := st.GetBackground(); bg != (lipgloss.NoColor{}) {
 		return bg
 	}
 	return DefaultTintColor

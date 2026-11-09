@@ -130,3 +130,28 @@ func TestLineChart_WithEventOption(t *testing.T) {
 		t.Fatalf("expected col 14 (29 - 15), got %d", events[0].Col)
 	}
 }
+
+func TestLineChart_EventDefaultColor(t *testing.T) {
+	red := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
+	defPin := lipgloss.NewStyle().Foreground(pulse.DefaultEventColor).Bold(true)
+	defLine := lipgloss.NewStyle().Foreground(pulse.DefaultEventColor).Faint(true)
+	for _, mode := range []pulse.RenderMode{pulse.ModeLines, pulse.ModeBraille} {
+		m := pulse.New(20, 5, pulse.WithMode(mode), pulse.WithFill(false))
+		for range 20 {
+			m.Push(10)
+		}
+		m.AddEventAt(15, pulse.Event{Label: "plain"})
+		m.AddEventAt(5, pulse.Event{Label: "red", Style: red})
+		view, box := m.View(), m.EventsBox()
+		for _, want := range []string{defPin.Render("▼"), defLine.Render("┆"), red.Render("▼"), red.Render("┆")} {
+			if !strings.Contains(view, want) {
+				t.Errorf("mode %v: View() has no %q", mode, want)
+			}
+		}
+		for _, want := range []string{defPin.Render("▼"), red.Render("▼")} {
+			if !strings.Contains(box, want) {
+				t.Errorf("mode %v: EventsBox() has no %q", mode, want)
+			}
+		}
+	}
+}

@@ -106,7 +106,7 @@ func sampleLineOf(w, h int, smooth bool, xs, ys []int) []dot {
 			px3, py3 = float64(xs[i+2]), float64(ys[i+2])
 		}
 		dx, dy := x1-x0, y1-y0
-		steps := 1
+		var steps int
 		if smooth {
 			steps = int((math.Abs(dx) + math.Abs(dy)) * 2)
 			if steps < 8 {
