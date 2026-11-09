@@ -27,6 +27,7 @@ Pulse is a Go library that draws live line charts in the terminal. It is for dev
 - An optional time axis with labels from your own function, at the quarter columns or at the columns you choose.
 - A cursor that shows each series' value at a past point, and scrolling back through the kept history.
 - One-line sparklines for tables and lists, with blocks or braille dots.
+- Donut charts in a separate package: a ring or a frame split into sections, with the total in the middle.
 - Gaps for missing samples: `NaN` and `±Inf` draw nothing.
 
 ## Usage
@@ -64,6 +65,7 @@ go -C examples run ./livedemo
 - [Timeline Events](docs/timeline-events.md): deploys and alerts on the chart, the events card
 - [Cursor and Scrolling](docs/cursor-and-scrolling.md): a value cursor, the values at a past point, scrolling back through the history
 - [Sparklines](docs/sparklines.md): a one-line trend with blocks or braille, for a table row
+- [Donut](docs/donut.md): a ring or a frame split into sections, glyph sets, the legend
 - [Bubble Tea Integration](docs/bubbletea.md): a chart inside a Bubble Tea model, ticks, hotkeys, resizing
 - [Development](docs/development.md): checks, demos, screenshots, releases, project structure
 - [API reference](https://pkg.go.dev/github.com/ingvarch/pulse) on pkg.go.dev
