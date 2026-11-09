@@ -1,202 +1,68 @@
 # Pulse
 
-<p align="center">
-  <img src="https://vhs.charm.sh/vhs-1.gif" alt="Pulse Banner" width="0" />
-</p>
+[![CI](https://github.com/ingvarch/pulse/actions/workflows/ci.yml/badge.svg)](https://github.com/ingvarch/pulse/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ingvarch/pulse.svg)](https://pkg.go.dev/github.com/ingvarch/pulse)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ingvarch/pulse)](https://goreportcard.com/report/github.com/ingvarch/pulse)
+[![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Release](https://img.shields.io/github/v/release/ingvarch/pulse)](https://github.com/ingvarch/pulse/releases)
+[![License](https://img.shields.io/github/license/ingvarch/pulse)](LICENSE)
+
+Pulse is a Go library that draws live line charts in the terminal. It is for developers who build terminal apps with Charm's [Lip Gloss](https://github.com/charmbracelet/lipgloss) and [Bubble Tea](https://github.com/charmbracelet/bubbletea): you push values, and `View()` returns a chart that slides left as new points arrive, drawn with box-drawing curves or braille dots. Pulse is made by [Igor Churmeev](https://github.com/ingvarch).
 
 <p align="center">
-  <strong>Real-time terminal line charts for Charm Lip Gloss and Bubble Tea.</strong>
+  <img src="assets/hero.png" alt="Pulse chart with several series, area fill and a legend" width="100%" />
 </p>
 
-<p align="center">
-  <a href="https://github.com/ingvarch/pulse/actions/workflows/ci.yml"><img src="https://github.com/ingvarch/pulse/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
-  <a href="https://pkg.go.dev/github.com/ingvarch/pulse"><img src="https://pkg.go.dev/badge/github.com/ingvarch/pulse.svg" alt="Go Reference" /></a>
-  <a href="https://goreportcard.com/report/github.com/ingvarch/pulse"><img src="https://goreportcard.com/badge/github.com/ingvarch/pulse" alt="Go Report Card" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-</p>
+## Features
 
----
+- Smooth box-drawing curves, thin and rounded or bold, or braille dots with spline smoothing for a denser line.
+- Several named series on one chart, each with its own Lip Gloss style, and a legend box with the latest values.
+- Area fill under the curves, stippled, tinted or solid, over a grid aligned to the Y ticks.
+- Charts around zero: a zero baseline, mirrored series such as network RX and TX, a symmetric range and byte-rate labels.
+- Events such as deploys and alerts, pinned to points on the timeline with a marker and a vertical line.
+- An optional time axis with labels from your own function, at the quarter columns or at the columns you choose.
+- Gaps for missing samples: `NaN` and `±Inf` draw nothing.
 
-<p align="center">
-  <img src="assets/hero.png" alt="Pulse Terminal Chart" width="100%" />
-</p>
-
-**Pulse** brings rich, responsive time-series visualization to terminal user interfaces (TUIs). Built specifically for the [Charm](https://charm.sh) ecosystem ([Lip Gloss](https://github.com/charmbracelet/lipgloss) and [Bubble Tea](https://github.com/charmbracelet/bubbletea)), Pulse features smooth box-drawing curves, high-density Braille sub-pixel rendering, half-tone shaded area fills, and Grafana-style aligned gridlines.
-
-## ✨ Features
-
-- **╭╯ Smooth Box-Drawing**: Continuous lines rendered with rounded arcs (`╭ ╮ ╯ ╰`) or bold strokes (`┏ ┓ ┛ ┗`).
-- **⠒ Sub-Pixel Braille**: High-density 2×4 dot Braille matrix interpolated via cubic **Catmull-Rom splines**.
-- **░ Shaded Area Fill**: Half-tone shading beneath curves that cleanly absorbs grid intersections.
-- **┼ Aligned Coordinate Grid**: Subtle coordinate grid aligned exactly to Y-axis ticks and width quarter-steps, or to the time labels with `WithXAxisAt`.
-- **📈 Multi-Series Support**: Plot multiple named metrics simultaneously with dedicated styles and swatches.
-- **🏷️ Timeline Annotations**: Pin events, deploys, and alerts onto the sliding timeline with custom glyphs and vertical guidelines.
-- **📦 Live Legend Box**: Bordered legend overlay displaying swatches, names, and real-time values.
-- **⚖️ Bidirectional & RX/TX Traffic**: Grafana-style zero baseline rulings, inverted mirror series, auto-symmetric centering, and adaptive byte rate formatters.
-- **⌇ Gaps for Missing Points**: Push `math.NaN()` for a missing sample. `NaN` and `±Inf` draw as gaps, with no line, fill, or connecting stroke.
-- **└┴ Optional Time Axis**: `WithXAxis` adds an axis row and a label row under the plot, with labels from your own function of the point age. `WithXAxisAt` puts labels only at the columns you choose, such as round hours.
-- **🫧 Charm Native**: Fully customizable with Lip Gloss styles and built for Bubble Tea event loops.
-
-## 🚀 Quick Start
-
-### Installation
+## Usage
 
 ```bash
 go get github.com/ingvarch/pulse
 ```
 
-### Minimal Example
-
 ```go
-package main
-
-import (
-	"fmt"
-	"math"
-
-	"github.com/ingvarch/pulse"
-	"github.com/ingvarch/pulse/theme"
-)
-
-func main() {
-	preset := theme.TokyoNight()
-	chartW, chartH := 80, 13
-
-	chart := pulse.New(chartW, chartH,
-		pulse.WithRange(0, 100),
-		pulse.WithTicks(0, 25, 50, 75, 100),
-		pulse.WithLineWidth(1), // Smooth rounded corners: ╭ ╮ ╯ ╰
-		pulse.WithAxisStyle(preset.Axis),
-		pulse.WithLineStyle(preset.LineFor(60)),
-	)
-
-	// Stream 80 data points into the sliding window
-	for i := 0; i < chartW; i++ {
-		val := 50 + 38*math.Sin(float64(i)*0.16)
-		chart.Push(val)
-	}
-
-	fmt.Println(chart.View())
+chart := pulse.New(80, 13, pulse.WithRange(0, 100))
+for i := 0; i < 80; i++ {
+	chart.Push(50 + 38*math.Sin(float64(i)*0.16))
 }
+fmt.Println(chart.View())
 ```
 
-<p align="center">
-  <img src="assets/quickstart.png" alt="Pulse Quick Start Output" width="100%" />
-</p>
+## Quick Start
 
-## 🎨 Lip Gloss Styling & Themes
-
-Pulse is designed from the ground up for [Lip Gloss](https://github.com/charmbracelet/lipgloss). You can style individual series, axes, borders, and threshold colors:
-
-```go
-package main
-
-import (
-	"fmt"
-	"charm.land/lipgloss/v2"
-	"github.com/ingvarch/pulse"
-	"github.com/ingvarch/pulse/theme"
-)
-
-func main() {
-	preset := theme.TokyoNight()
-
-	chart := pulse.New(80, 13,
-		pulse.WithRange(0, 100),
-		pulse.WithTicks(0, 25, 50, 75, 100),
-		pulse.WithLineWidth(2), // Bold curves: ┏ ┓ ┛ ┗
-		pulse.WithAxisStyle(preset.Axis),
-		pulse.WithSeriesStyle("cluster-a", preset.LineFor(88.0)), // Red warning threshold
-		pulse.WithSeriesStyle("cluster-b", lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))),
-	)
-
-	// Wrap the chart in a Lip Gloss bordered container
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#3b4261")).
-		Padding(1, 2).
-		Render(chart.View() + "\n" + chart.LegendBox())
-
-	fmt.Println(box)
-}
-```
-
-<p align="center">
-  <img src="assets/styled.png" alt="Pulse Lip Gloss Styling" width="100%" />
-</p>
-
-## ⠒ Braille Sub-Pixel Rendering
-
-For ultra-dense metrics, switch to `pulse.ModeBraille` to enable 2×4 dot matrix sub-pixel resolution powered by cubic Catmull-Rom spline interpolation:
-
-```go
-chart.SetMode(pulse.ModeBraille)
-```
-
-<p align="center">
-  <img src="assets/braille.png" alt="Pulse Braille Sub-Pixel Rendering" width="100%" />
-</p>
-
-## ⚖️ Bidirectional & RX/TX Traffic
-
-Monitor inverted network streams, disk I/O, or profit/loss with a central zero baseline ruling (`├`), smooth bidirectional area fill, and auto-symmetric scaling:
-
-```go
-chart := pulse.New(80, 15,
-	pulse.WithRange(0, 100*MB),
-	pulse.WithSymmetric(true),
-	pulse.WithZeroBaseline(true),
-	pulse.WithSeriesInverted("tx", true),
-	pulse.WithLabelFormatter(scale.BytesRateFormatter(true)),
-)
-```
-
-<p align="center">
-  <img src="assets/rxtx.png" alt="Pulse Bidirectional RX/TX Traffic" width="100%" />
-</p>
-
-## 📚 Documentation
-
-Detailed guides and API references are available in the [docs](docs/) directory:
-
-| Document | Description |
-| -------- | ----------- |
-| [**Getting Started**](docs/getting-started.md) | Constructor options, sliding window buffers, multi-series, and runtime controls |
-| [**Rendering Modes**](docs/rendering-modes.md) | Box-drawing curves (rounded vs bold), Braille sub-pixel matrix, and area fill |
-| [**Axes & Grid**](docs/axes-and-grid.md) | Adaptive NiceTicks, custom tick quarter-steps, and Grafana grid alignment |
-| [**Zero-Crossing & RX/TX**](docs/zero-crossing-fill.md) | Grafana-style bidirectional charts, zero baseline rulings, and series inversion |
-| [**Timeline Events**](docs/timeline-events.md) | Pin deployments, alerts, and markers (`▼`, `🚀`, `⚡`) with guidelines and sliding cards |
-| [**Bubble Tea Integration**](docs/bubbletea.md) | Embedding in Bubble Tea models, telemetry ticks, and interactive hotkeys |
-
-## 🎮 Interactive Demos
-
-Try the included examples directly from your terminal:
+You need Go 1.26 or newer, see [docs/development.md](docs/development.md).
 
 ```bash
-# Grafana-style live network traffic (RX / TX) with zero baseline & mode toggles
-go run ./examples/rxtxdemo
-
-# Live multi-series stream (CPU, MEM, NET) with hotkeys: t (thickness), m (braille), q (quit)
-go run ./examples/multidemo
-
-# Live single-signal generator with thickness & mode toggle
+git clone https://github.com/ingvarch/pulse.git
+cd pulse
+go test ./...
 go run ./examples/livedemo
-
-# Real-time hardware telemetry (CPU & RAM) from your machine
-go run ./examples/cpulive
-
-# Clean terminal screenshot generator
-go run ./examples/cpudemo
 ```
 
-## 🤝 Community & Contributing
+## Documentation
 
-We welcome issues and pull requests! Please check our community guidelines:
+- [Getting Started](docs/getting-started.md): install, the sliding window, missing points, several series, styling and themes, legends, runtime settings
+- [Rendering Modes](docs/rendering-modes.md): box-drawing curves, braille dots, area fill
+- [Axes and Grid](docs/axes-and-grid.md): Y ticks, the grid, the time axis, symmetric range, label formatters
+- [Zero-Crossing and RX/TX](docs/zero-crossing-fill.md): zero baseline, mirrored series, negative styles, byte-rate labels
+- [Timeline Events](docs/timeline-events.md): deploys and alerts on the chart, the events card
+- [Bubble Tea Integration](docs/bubbletea.md): a chart inside a Bubble Tea model, ticks, hotkeys
+- [Development](docs/development.md): checks, demos, screenshots, releases, project structure
+- [API reference](https://pkg.go.dev/github.com/ingvarch/pulse) on pkg.go.dev
 
-- [Contributing Guide](CONTRIBUTING.md)
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- [Security Policy](SECURITY.md)
+## License
 
-## 📄 License
+MIT, see [LICENSE](LICENSE).
 
-Pulse is licensed under the [MIT License](LICENSE).
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately, as [SECURITY.md](SECURITY.md) describes.

@@ -85,6 +85,48 @@ chart.SetSeriesStyle("cpu", lipgloss.NewStyle().Foreground(lipgloss.Color("#ff55
 chart.SetSeriesStyle("mem", lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
 ```
 
+## Styling and Themes
+
+Series, axes and the legend take Lip Gloss styles, and `View()` returns a plain string, so the chart fits inside any Lip Gloss container. The `theme` package has a Tokyo Night preset: `preset.Axis` styles the axis, and `preset.LineFor(v)` picks a line color by value: green below 60, amber below 85, red from 85.
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"charm.land/lipgloss/v2"
+	"github.com/ingvarch/pulse"
+	"github.com/ingvarch/pulse/theme"
+)
+
+func main() {
+	preset := theme.TokyoNight()
+
+	chart := pulse.New(80, 13,
+		pulse.WithRange(0, 100),
+		pulse.WithTicks(0, 25, 50, 75, 100),
+		pulse.WithLineWidth(2), // Bold curves: ┏ ┓ ┛ ┗
+		pulse.WithAxisStyle(preset.Axis),
+		pulse.WithSeriesStyle("cluster-a", preset.LineFor(88.0)), // red: 88 is above the critical level
+		pulse.WithSeriesStyle("cluster-b", lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))),
+	)
+
+	// Wrap the chart in a Lip Gloss bordered container
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#3b4261")).
+		Padding(1, 2).
+		Render(chart.View() + "\n" + chart.LegendBox())
+
+	fmt.Println(box)
+}
+```
+
+<p align="center">
+  <img src="../assets/styled.png" alt="Pulse chart in a Lip Gloss bordered box with a legend" width="100%" />
+</p>
+
 ## Legends and Value Inspection
 
 Pulse provides built-in legend helpers:
