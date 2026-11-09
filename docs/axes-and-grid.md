@@ -1,6 +1,6 @@
 # Axes, Scales & Grid Alignment
 
-## Y-Axis Auto-Scaling (`NiceTicks`)
+## Y-Axis Ticks (`NiceTicks`)
 
 By default, Pulse calculates visually balanced tick intervals using the **Nice Numbers** algorithm (`scale.NiceTicks`).
 
@@ -10,7 +10,36 @@ chart := pulse.New(60, 10, pulse.WithRange(0, 100))
 
 The algorithm adapts to chart height, picking clean, human-friendly steps such as multiples of 1, 2, 5, 10, 20, 25, or 50.
 
-`WithRange` and `SetRange` ignore a call with a NaN or infinite bound and keep the current range, which is `0..100` on a new chart.
+`WithRange` and `SetRange` ignore a call with a NaN or infinite bound and keep the current range, which is `0..100` on a new chart. A call that sets the range turns [auto range](#automatic-range) off.
+
+## Automatic Range
+
+`WithAutoRange(true)` fits the Y range to your data, so you do not call `SetRange` on every push. Use it for metrics without a fixed scale, such as network throughput or latency.
+
+```go
+chart := pulse.New(80, 13, pulse.WithAutoRange(true))
+chart.Push(120)
+chart.Push(730)
+chart.View()
+fmt.Println(chart.Min(), chart.Max()) // 0 800
+```
+
+<p align="center">
+  <img src="../assets/autorange.png" alt="Throughput chart whose range follows a spike" width="100%" />
+</p>
+
+- `View` computes the range from the finite values in the visible window (the last `Width()` points) of all series, the default series included. A spike leaves the range when it scrolls out of the window.
+- Gaps (NaN, +Inf, -Inf) are ignored.
+- 0 always stays inside the range. A chart of positive values starts at 0.
+- The bounds are rounded out with `scale.NiceRange`, so the top and the bottom are tick values and both get a label.
+- An inverted series counts with its sign flipped, as it is drawn.
+- With `WithSymmetric(true)` the range is `[-a, +a]`, where `a` is the largest absolute value.
+- With no finite values, or with a flat line at 0, the range is `0..1` (`-1..1` when symmetric).
+- With `WithTicks`, auto range still sets the range. Only the ticks inside it get a label.
+- `Min()` and `Max()` return the range of the last `View`, and the initial range before the first `View`. Renderers draw against it.
+- `WithRange` and `SetRange` turn auto range off. `WithAutoRange(true)` after `WithRange` turns it on again. `WithSymmetric` and `SetSymmetric` leave it as it is.
+- `SetAutoRange(false)` keeps the range of the last render. `AutoRange()` reports the state.
+- The label column gets wider when a longer label appears, for example when `750` becomes `1000`. To keep the chart width fixed, set `WithLabelWidth` to the widest label you expect.
 
 ## Custom Ticks
 

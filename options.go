@@ -10,9 +10,16 @@ import (
 type Option func(*Model)
 
 // WithRange sets the fixed Y range. For example, WithRange(0, 100) for CPU/RAM.
-// A NaN or infinite bound is ignored, as in SetRange.
+// A NaN or infinite bound is ignored, as in SetRange. It turns auto range off.
 func WithRange(min, max float64) Option {
 	return func(m *Model) { m.SetRange(min, max) }
+}
+
+// WithAutoRange fits the Y range to the finite values visible in the window, across all series.
+// The bounds are rounded out to tick values from scale.NiceRange and 0 stays inside.
+// WithRange turns it off; WithAutoRange(true) given after WithRange turns it back on.
+func WithAutoRange(on bool) Option {
+	return func(m *Model) { m.SetAutoRange(on) }
 }
 
 // WithLineStyle sets the default line style.
