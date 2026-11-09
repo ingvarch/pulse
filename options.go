@@ -10,6 +10,7 @@ import (
 type Option func(*Model)
 
 // WithRange sets the fixed Y range. For example, WithRange(0, 100) for CPU/RAM.
+// A NaN or infinite bound is ignored, as in SetRange.
 func WithRange(min, max float64) Option {
 	return func(m *Model) { m.SetRange(min, max) }
 }
