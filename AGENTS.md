@@ -9,6 +9,7 @@ Pulse is a Go library that draws live line charts in the terminal for Lip Gloss 
 - [docs/axes-and-grid.md](docs/axes-and-grid.md): read before changing Y ticks, the grid, the time axis, the symmetric range or label formatters in `view.go`, `xaxis.go` and `scale/`.
 - [docs/zero-crossing-fill.md](docs/zero-crossing-fill.md): read before changing the zero baseline, inverted series, negative styles or the byte-rate formatters.
 - [docs/timeline-events.md](docs/timeline-events.md): read before changing `event.go`: event placement, guidelines, pruning and `EventsBox`.
+- [docs/thresholds.md](docs/thresholds.md): read before changing `threshold.go`: threshold lines, labels and colors, and how `view.go` and `renderer*.go` use them.
 - [docs/bubbletea.md](docs/bubbletea.md): read before changing `examples/` or how the chart is embedded in a Bubble Tea model.
 
 ## Rules

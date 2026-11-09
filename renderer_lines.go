@@ -283,7 +283,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		}
 		if lineMask[r][col] != 0 {
 			isNeg := ctx.isNegativeRow(r, c.Max())
-			st := styleFor(lineOwner[r][col], isNeg, ctx, fallback)
+			st := styleFor(lineOwner[r][col], r, isNeg, ctx, fallback)
 			if tinted {
 				st = st.Background(tintColorFor(c, st))
 			}
@@ -294,7 +294,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			var bg color.Color
 			if fillMask[r][col] && tinted {
 				isNeg := ctx.isNegativeRow(r, c.Max())
-				baseStyle := styleFor(fillOwner[r][col], isNeg, ctx, fallback)
+				baseStyle := styleFor(fillOwner[r][col], r, isNeg, ctx, fallback)
 				bg = tintColorFor(c, baseStyle)
 			}
 			if s, ok := renderEventGuideline(ve, bg); ok {
@@ -307,14 +307,14 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			if hasAbove && hasBelow {
 				st := ctx.GridStyle
 				if tinted {
-					baseStyle := styleFor(fillAboveOwner[col], false, ctx, fallback)
+					baseStyle := styleFor(fillAboveOwner[col], r, false, ctx, fallback)
 					st = st.Background(tintColorFor(c, baseStyle))
 				}
 				return st.Render("┼"), true
 			}
 			if hasAbove {
 				owner := fillAboveOwner[col]
-				st := styleFor(owner, false, ctx, fallback)
+				st := styleFor(owner, r, false, ctx, fallback)
 				if tinted {
 					st = st.Background(tintColorFor(c, st))
 				}
@@ -322,7 +322,7 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 			}
 			if hasBelow {
 				owner := fillBelowOwner[col]
-				st := styleFor(owner, true, ctx, fallback)
+				st := styleFor(owner, r, true, ctx, fallback)
 				if tinted {
 					st = st.Background(tintColorFor(c, st))
 				}
@@ -333,9 +333,9 @@ func (LinesRenderer) Render(c Chart, ctx RenderContext) string {
 		if fillMask[r][col] {
 			owner := fillOwner[r][col]
 			isNeg := ctx.isNegativeRow(r, c.Max())
-			st := faintStyleFor(owner, isNeg, ctx, fallback)
+			st := faintStyleFor(owner, r, isNeg, ctx, fallback)
 			if tinted {
-				baseStyle := styleFor(owner, isNeg, ctx, fallback)
+				baseStyle := styleFor(owner, r, isNeg, ctx, fallback)
 				bg := tintColorFor(c, baseStyle)
 				if solid {
 					return lipgloss.NewStyle().Background(bg).Render(" "), true

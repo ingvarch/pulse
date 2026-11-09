@@ -65,6 +65,11 @@ type RenderContext struct {
 	SeriesData     [][]float64
 	GridStyle      lipgloss.Style
 	ZeroRow        int
+	// ThresholdStyles maps a row to the threshold style of series cells in it. It is empty when threshold colors are off.
+	ThresholdStyles map[int]lipgloss.Style
+	// ThresholdLines maps a row to its threshold line: one rendered cell per plot column.
+	// A wide cell is followed by empty cells, and the first cell is always a dash.
+	ThresholdLines map[int][]string
 }
 
 // isNegativeRow reports whether terminal row r represents negative values.
@@ -107,6 +112,16 @@ func tickRowOf(h int, min, max, v float64) int {
 	return int(math.Round(float64(h-1) * (1.0 - normOf(min, max, v))))
 }
 
+// callbackCovers reports whether the callback draws a cell in columns col+1 to col+width-1.
+func callbackCovers(cellAt func(r, c int) (string, bool), r, col, width int) bool {
+	for k := 1; k < width; k++ {
+		if _, ok := cellAt(r, col+k); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)) string {
 	w, h := c.Width(), c.Height()
 	axisNormal := c.AxisStyle().Render("│")
@@ -124,6 +139,18 @@ func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)
 			if s, ok := cellAt(r, col); ok {
 				sb.WriteString(s)
 				if sw := lipgloss.Width(s); sw > 1 {
+					col += sw - 1
+				}
+				continue
+			}
+			if cells := ctx.ThresholdLines[r]; col < len(cells) {
+				cell := cells[col]
+				sw := lipgloss.Width(cell)
+				if cell == "" || (sw > 1 && callbackCovers(cellAt, r, col, sw)) {
+					cell, sw = cells[0], 1
+				}
+				sb.WriteString(cell)
+				if sw > 1 {
 					col += sw - 1
 				}
 				continue
@@ -149,18 +176,24 @@ func renderGrid(c Chart, ctx RenderContext, cellAt func(r, c int) (string, bool)
 	return sb.String()
 }
 
-func styleFor(owner int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
-	if owner >= 0 && owner < len(ctx.Styles) {
-		if isNeg && owner < len(ctx.HasNegStyles) && ctx.HasNegStyles[owner] {
-			return ctx.NegativeStyles[owner]
-		}
+// styleFor picks the style of a series cell in row r: the negative style of its series,
+// else the threshold style of the row, else the series style.
+func styleFor(owner, r int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
+	known := owner >= 0 && owner < len(ctx.Styles)
+	if known && isNeg && owner < len(ctx.HasNegStyles) && ctx.HasNegStyles[owner] {
+		return ctx.NegativeStyles[owner]
+	}
+	if st, ok := ctx.ThresholdStyles[r]; ok {
+		return st
+	}
+	if known {
 		return ctx.Styles[owner]
 	}
 	return fallback
 }
 
-func faintStyleFor(owner int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
-	return styleFor(owner, isNeg, ctx, fallback).Faint(true)
+func faintStyleFor(owner, r int, isNeg bool, ctx RenderContext, fallback lipgloss.Style) lipgloss.Style {
+	return styleFor(owner, r, isNeg, ctx, fallback).Faint(true)
 }
 
 func gridCell(h, v bool) string {

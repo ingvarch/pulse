@@ -278,7 +278,7 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 			if lineDots != 0 {
 				ownerIdx := owner[r][col]
 				isNeg := ownerIsNeg[r][col]
-				st := styleFor(ownerIdx, isNeg, ctx, fallback)
+				st := styleFor(ownerIdx, r, isNeg, ctx, fallback)
 				if tinted {
 					st = st.Background(tintColorFor(c, st))
 				}
@@ -286,9 +286,9 @@ func (BrailleRenderer) Render(c Chart, ctx RenderContext) string {
 			}
 			ownerIdx := fillOwner[r][col]
 			isNeg := fillIsNeg[r][col]
-			st := faintStyleFor(ownerIdx, isNeg, ctx, fallback)
+			st := faintStyleFor(ownerIdx, r, isNeg, ctx, fallback)
 			if tinted {
-				baseStyle := styleFor(ownerIdx, isNeg, ctx, fallback)
+				baseStyle := styleFor(ownerIdx, r, isNeg, ctx, fallback)
 				st = st.Background(tintColorFor(c, baseStyle))
 			}
 			return st.Render(string(rune(0x2800 + int(dots)))), true
