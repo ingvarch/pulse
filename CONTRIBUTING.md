@@ -30,7 +30,7 @@ Setup, checks, demos and screenshots are in [docs/development.md](docs/developme
 2. Write a failing test for the new behavior or the bug first, then the code that makes it pass.
 3. Document every exported function, method and type in English, following the [Go doc conventions](https://go.dev/doc/comment).
 4. Update the guide in `docs/` that describes the behavior, and its screenshot when the picture changes.
-5. Run the checks from [docs/development.md](docs/development.md#checks): `gofmt`, `go vet`, `go test -race` and `go build`.
+5. Run the checks from [docs/development.md](docs/development.md#checks): `gofmt`, `go vet`, `go test -race` and `go build`, in the root and in the `examples` module.
 6. Write commits as [Conventional Commits](https://www.conventionalcommits.org/) with the `pulse` scope, for example `feat(pulse): add WithXAxisAt` or `docs(pulse): fix the Bubble Tea example`.
 7. Open a pull request that fills in the template and closes its issue with `Closes #<number>`. Keep it to one fix or one feature.
 

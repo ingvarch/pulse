@@ -19,5 +19,5 @@ Closes #
 - [ ] I have read the [CONTRIBUTING.md](https://github.com/ingvarch/pulse/blob/main/CONTRIBUTING.md) guide.
 - [ ] My code adheres to the project's code style and conventions (`gofmt`, `go vet`).
 - [ ] I have added tests that prove my fix is effective or that my feature works.
-- [ ] All existing and new tests pass (`go test -race ./...`) and everything builds (`go build ./...`).
+- [ ] All existing and new tests pass (`go test -race ./...`) and everything builds (`go build ./...` and `go -C examples build ./...`).
 - [ ] I have updated any relevant documentation.

@@ -262,7 +262,7 @@ chart := pulse.New(60, 10,
 An interactive Bubble Tea demo featuring live network traffic with runtime mode toggles is included in [`examples/rxtxdemo`](../examples/rxtxdemo):
 
 ```bash
-go run ./examples/rxtxdemo
+go -C examples run ./rxtxdemo
 ```
 
 **Hotkeys available in the demo:**

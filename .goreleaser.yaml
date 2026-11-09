@@ -5,10 +5,12 @@ project_name: pulse
 before:
   hooks:
     - go mod tidy
+    - go -C examples mod tidy
 
 builds:
   - id: pulse-livedemo
-    main: ./examples/livedemo
+    dir: examples
+    main: ./livedemo
     binary: pulse-livedemo
     env:
       - CGO_ENABLED=0
@@ -21,7 +23,8 @@ builds:
       - arm64
 
   - id: pulse-multidemo
-    main: ./examples/multidemo
+    dir: examples
+    main: ./multidemo
     binary: pulse-multidemo
     env:
       - CGO_ENABLED=0

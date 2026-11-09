@@ -45,7 +45,7 @@ You need Go 1.26 or newer, see [docs/development.md](docs/development.md).
 git clone https://github.com/ingvarch/pulse.git
 cd pulse
 go test ./...
-go run ./examples/livedemo
+go -C examples run ./livedemo
 ```
 
 ## Documentation

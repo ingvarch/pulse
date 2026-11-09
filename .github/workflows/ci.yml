@@ -24,6 +24,9 @@ jobs:
         with:
           go-version: "stable"
           cache: true
+          cache-dependency-path: |
+            go.sum
+            examples/go.sum
 
       - name: Verify formatting
         run: |
@@ -34,10 +37,22 @@ jobs:
           fi
 
       - name: Go vet
-        run: go vet ./...
+        run: |
+          go vet ./...
+          go -C examples vet ./...
 
       - name: Run tests with race detector
         run: go test -v -race ./...
 
-      - name: Build all packages and examples
+      - name: Build the library and cmd/gen-shots
         run: go build ./...
+
+      - name: Build the examples
+        run: go -C examples build ./...
+
+      - name: Keep example dependencies out of the root module
+        run: |
+          if go list -m all | grep -E 'charm.land/bubbletea|shirou/gopsutil'; then
+            echo "The root module must not depend on Bubble Tea or gopsutil; only examples/ may."
+            exit 1
+          fi

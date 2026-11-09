@@ -13,6 +13,6 @@ Pulse is a Go library that draws live line charts in the terminal for Lip Gloss 
 
 ## Rules
 
-- The library packages import Lip Gloss, never Bubble Tea or gopsutil: only `examples/` use them. Keep it that way; issue #9 moves the examples into their own module.
+- The library packages import Lip Gloss, never Bubble Tea or gopsutil: only `examples/` use them, and `examples/` is a separate module (`go -C examples build ./...`), so the root `go build ./...` does not build the demos. CI fails when the root module graph lists Bubble Tea or gopsutil.
 - Code samples in the README and `docs/` are not compiled. When you change an API, grep the docs for it and update the samples. Charm packages use the v2 paths `charm.land/lipgloss/v2` and `charm.land/bubbletea/v2`; `github.com/charmbracelet/bubbletea` is the old v1 API.
 - The plan lives in GitHub milestones and issues (`gh issue list --milestone v0.8.0`), not in the repository.
