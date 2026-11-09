@@ -36,7 +36,8 @@ body:
       description: OS, Go version, Terminal emulator, Terminal font.
       value: |
         - OS: [e.g. macOS, Linux, Windows]
-        - Go version: [e.g. 1.24]
+        - Go version: [e.g. 1.26]
+        - Pulse version: [e.g. v0.7.0]
         - Terminal: [e.g. Kitty, Ghostty, iTerm2, Alacritty, Windows Terminal]
     validations:
       required: true

@@ -2,6 +2,10 @@
 
 Briefly describe the change and why it was made.
 
+## Issues
+
+Closes #
+
 ## Type of Change
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
@@ -12,8 +16,8 @@ Briefly describe the change and why it was made.
 
 ## Checklist
 
-- [ ] I have read the [CONTRIBUTING.md](CONTRIBUTING.md) guide.
+- [ ] I have read the [CONTRIBUTING.md](https://github.com/ingvarch/pulse/blob/main/CONTRIBUTING.md) guide.
 - [ ] My code adheres to the project's code style and conventions (`gofmt`, `go vet`).
 - [ ] I have added tests that prove my fix is effective or that my feature works.
-- [ ] All existing and new tests pass (`go test -race ./...`).
+- [ ] All existing and new tests pass (`go test -race ./...`) and everything builds (`go build ./...`).
 - [ ] I have updated any relevant documentation.

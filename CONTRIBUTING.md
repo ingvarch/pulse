@@ -1,49 +1,43 @@
 # Contributing to Pulse
 
-Thank you for your interest in contributing to **Pulse**! We welcome contributions, bug reports, feature proposals, and pull requests.
-
-## Development Setup
-
-Pulse requires Go 1.22 or newer.
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/ingvarch/pulse.git
-   cd pulse
-   ```
-
-2. Run tests to ensure everything is working:
-   ```bash
-   go test -v ./...
-   ```
-
-3. Try out the live interactive demo:
-   ```bash
-   go run ./examples/livedemo
-   ```
-
-## Pull Request Guidelines
-
-1. **Keep it focused**: One bugfix or feature per PR.
-2. **Add tests**: Include unit tests for any new behavior or bugfix.
-3. **Follow Go style**:
-   - Format code using standard formatting: `gofmt -s -w .`
-   - Run vet: `go vet ./...`
-   - Run test suite with race detector: `go test -race ./...`
-4. **Preserve documentation**: Document all exported functions, methods, and types with clean docstrings in English according to [Go Doc Conventions](https://go.dev/blog/godoc).
-5. **Commit style**: We follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat: ...`, `fix: ...`, `docs: ...`, `refactor: ...`).
+Bug reports, feature ideas and pull requests are welcome.
 
 ## Reporting Bugs
 
-Please open an issue on GitHub with:
+Open a [bug report](https://github.com/ingvarch/pulse/issues/new?template=bug_report.yml) with:
 - A clear description of the issue.
-- Your terminal emulator and operating system.
-- A minimal reproducible code snippet.
-- Expected vs actual output (terminal screenshots or ASCII text are appreciated).
+- Your terminal emulator, its font and your operating system.
+- The Pulse and Go versions.
+- A minimal code snippet that reproduces it.
+- Expected and actual output: a screenshot or the text of the chart.
+
+Report security issues privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## Suggesting Enhancements
 
-Have an idea for a new feature (e.g., custom rendering styles, new chart components, scale improvements)? Open an issue describing:
-- What problem you are trying to solve.
-- How you envision the API looking.
-- Any alternative solutions considered.
+Open a [feature request](https://github.com/ingvarch/pulse/issues/new?template=feature_request.yml) that describes:
+- The problem you are trying to solve.
+- How you see the API.
+- Any alternatives you considered.
+
+## Development Setup
+
+Setup, checks, demos and screenshots are in [docs/development.md](docs/development.md).
+
+## Making a Change
+
+1. Create a branch named `<type>/<short-name>`, for example `feat/xaxis-at` or `fix/gap-fill`.
+2. Write a failing test for the new behavior or the bug first, then the code that makes it pass.
+3. Document every exported function, method and type in English, following the [Go doc conventions](https://go.dev/doc/comment).
+4. Update the guide in `docs/` that describes the behavior, and its screenshot when the picture changes.
+5. Run the checks from [docs/development.md](docs/development.md#checks): `gofmt`, `go vet`, `go test -race` and `go build`.
+6. Write commits as [Conventional Commits](https://www.conventionalcommits.org/) with the `pulse` scope, for example `feat(pulse): add WithXAxisAt` or `docs(pulse): fix the Bubble Tea example`.
+7. Open a pull request that fills in the template and closes its issue with `Closes #<number>`. Keep it to one fix or one feature.
+
+## Code of Conduct
+
+This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). By taking part you agree to it.
+
+## License
+
+By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
