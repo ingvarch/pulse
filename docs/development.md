@@ -17,23 +17,27 @@ cd pulse
 CI runs these on Ubuntu and macOS for every push and pull request to `main`. Run them before you open a pull request:
 
 ```bash
-gofmt -l .            # must print nothing; gofmt -s -w . fixes it
+gofmt -l .                     # must print nothing; gofmt -s -w . fixes it
 go vet ./...
+go -C examples vet ./...
 go test -race ./...
-go build ./...        # builds the examples and cmd/gen-shots too
+go build ./...                 # the library and cmd/gen-shots
+go -C examples build ./...     # the demos
 ```
+
+The demos in `examples/` are a separate module, `github.com/ingvarch/pulse/examples`, so Bubble Tea and gopsutil stay out of the module graph of every program that imports pulse. Its `go.mod` replaces `github.com/ingvarch/pulse` with `../`, so the demos build against the working tree. CI fails when the root `go list -m all` lists Bubble Tea or gopsutil.
 
 ## Run the Demos
 
-Each demo is a Bubble Tea program in `examples/`. `q`, `Esc` or `Ctrl+C` quits.
+Each demo is a Bubble Tea program in the `examples/` module. Run them from the repository root with `go -C examples run`. `q`, `Esc` or `Ctrl+C` quits.
 
 | Command | What it shows | Keys |
 | ------- | ------------- | ---- |
-| `go run ./examples/livedemo` | One generated signal | `t` line width, `m` lines or braille, `f` tinted fill, `s` solid fill, `e` add an event |
-| `go run ./examples/multidemo` | CPU, MEM and NET series | `t` line width, `m` lines or braille |
-| `go run ./examples/rxtxdemo` | Network RX and TX around a zero baseline | `w` line width, `s` smoothing, `m` lines or braille, `f` fill, `t` tinted fill, `z` zero baseline, `y` symmetric range |
-| `go run ./examples/cpulive` | CPU and RAM of this machine, read with gopsutil | `t` line width, `m` lines or braille |
-| `go run ./examples/cpudemo` | Prints one chart and exits | none |
+| `go -C examples run ./livedemo` | One generated signal | `t` line width, `m` lines or braille, `f` tinted fill, `s` solid fill, `e` add an event |
+| `go -C examples run ./multidemo` | CPU, MEM and NET series | `t` line width, `m` lines or braille |
+| `go -C examples run ./rxtxdemo` | Network RX and TX around a zero baseline | `w` line width, `s` smoothing, `m` lines or braille, `f` fill, `t` tinted fill, `z` zero baseline, `y` symmetric range |
+| `go -C examples run ./cpulive` | CPU and RAM of this machine, read with gopsutil | `t` line width, `m` lines or braille |
+| `go -C examples run ./cpudemo` | Prints one chart and exits | none |
 
 ## Screenshots
 
@@ -51,7 +55,7 @@ go run ./cmd/gen-shots -mode xaxis | env PATH=/usr/bin:/bin "$(command -v freeze
 
 ## Release
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`. GoReleaser builds `pulse-livedemo` and `pulse-multidemo` for Linux, macOS and Windows (amd64 and arm64) and publishes them with a changelog on the GitHub release. The changelog leaves out `docs:` and `test:` commits.
+Pushing a `v*` tag runs `.github/workflows/release.yml`. GoReleaser builds `pulse-livedemo` and `pulse-multidemo` from the `examples` module for Linux, macOS and Windows (amd64 and arm64) and publishes them with a changelog on the GitHub release. The changelog leaves out `docs:` and `test:` commits.
 
 Tag the merged commit on `main`: pull first and check `git log -1` before you tag. The Go module proxy keeps a published version, so a wrong tag cannot be moved; retract it in `go.mod` and tag a new version. That happened to v0.6.0, which was tagged on the v0.5.0 commit.
 
@@ -77,7 +81,7 @@ git push origin v0.8.0
 | `xaxis.go` | The time axis for `WithXAxis` and `WithXAxisAt` |
 | `scale/` | `NiceTicks`, tick and byte-rate formatters |
 | `theme/` | The Tokyo Night preset and value colors |
-| `examples/` | The demos |
+| `examples/` | The demos, a separate module with its own `go.mod` |
 | `cmd/gen-shots/` | The screenshot generator |
 | `assets/` | Images used by the README and the guides |
 | `docs/` | The guides |
