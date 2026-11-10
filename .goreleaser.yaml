@@ -36,6 +36,20 @@ builds:
       - amd64
       - arm64
 
+  - id: pulse-donut
+    dir: examples
+    main: ./donut
+    binary: pulse-donut
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
 archives:
   - id: default
     format: tar.gz

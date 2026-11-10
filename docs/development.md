@@ -57,7 +57,7 @@ go run ./cmd/gen-shots -mode xaxis | env PATH=/usr/bin:/bin "$(command -v freeze
 
 ## Release
 
-Pushing a `v*` tag runs `.github/workflows/release.yml`. GoReleaser builds `pulse-livedemo` and `pulse-multidemo` from the `examples` module for Linux, macOS and Windows (amd64 and arm64) and publishes them with a changelog on the GitHub release. The changelog leaves out `docs:` and `test:` commits.
+Pushing a `v*` tag runs `.github/workflows/release.yml`. GoReleaser builds `pulse-livedemo`, `pulse-multidemo` and `pulse-donut` from the `examples` module for Linux, macOS and Windows (amd64 and arm64) and publishes them with a changelog on the GitHub release. The changelog leaves out `docs:` and `test:` commits.
 
 Tag the merged commit on `main`: pull first and check `git log -1` before you tag. The Go module proxy keeps a published version, so a wrong tag cannot be moved; retract it in `go.mod` and tag a new version. That happened to v0.6.0, which was tagged on the v0.5.0 commit.
 
