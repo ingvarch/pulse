@@ -1,9 +1,9 @@
 module github.com/ingvarch/pulse
 
-go 1.26.0
+go 1.26.7
 
 require (
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	github.com/charmbracelet/x/ansi v0.11.9
 )
 

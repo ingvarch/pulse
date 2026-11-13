@@ -1,10 +1,10 @@
 module github.com/ingvarch/pulse/examples
 
-go 1.26.0
+go 1.26.7
 
 require (
 	charm.land/bubbletea/v2 v2.1.1
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	github.com/ingvarch/pulse v0.0.0
 	github.com/shirou/gopsutil/v4 v4.26.10
 )
